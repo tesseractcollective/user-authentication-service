@@ -28,7 +28,7 @@ type Grant {
 
 - Row permissions would have the following checks:
 
-```
+```json
 {
   "_or": [
     {
