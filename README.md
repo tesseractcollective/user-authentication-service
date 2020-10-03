@@ -4,9 +4,8 @@
 
 - Role based permissions defined
   - Any number of roles with any names are allowed, but most services will just have one role called `grant`
-  - Roles will use the custom fields `x-hasura-owner-id` and `x-hasura-grant-id` to define permissions. Example: a user will have a JWT with `x-hasura-owner-id: <USER_ID>`, `x-hasura-role: <GIVEN_ROLE>`, and `x-hasura-grant-id: <ORG_ID>`. In the Authentication service, each user or org may only have one role per service. So at any given time, a user will only be able to access things they own or things the org in the token owns given the single defined role. 
-  - Question: do we want to establish our own namespace like `x-tsrct-owner-id`?
-- JWT authentication setup with a custom claim namespace per service
+  - Roles will use the custom fields `X-Hasura-Owner-Id` and `X-Hasura-Grant-Id` to define permissions. Example: a user will have a JWT with `X-Hasura-Owner-Id`: <USER_ID>`, `X-Hasura-Role: grant`, and `X-Hasura-Grant-Id: <ORG_ID>`. In the Authentication service, each user or org may only have one role per service. So at any given time, a user will only be able to access things they own or things the org in the token owns given the single defined role. 
+- JWT authentication setup with a custom claim namespace per service and the custom fields `X-Hasura-Owner-Id` and `X-Hasura-Grant-Id`.
 - Each table that has permissions has an `ownerId`
 
 ```gql
