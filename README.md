@@ -111,7 +111,7 @@ type Policy {
 
 ### Roles 
 
-Roles group policies together and can be assigned to users or organizations
+Roles group policies together and can be assigned to users or organizations. When a Role is assigned to a user or organization, the Authentication Service must make one entry for each policy in the `grants` table of the service defined by the policy. 
 
 ```gql
 type Role {
