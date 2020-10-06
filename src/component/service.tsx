@@ -20,8 +20,8 @@ export const ServiceEdit = (props: any) => (
             <TextInput source="name" />
             <TextInput source="url" />
             <TextInput source="namespace" />
-            <DateInput source="createdAt" />
-            <DateInput source="updatedAt" />
+            <DateInput disabled source="createdAt" />
+            <DateInput disabled source="updatedAt" />
         </SimpleForm>
     </Edit>
 );
@@ -32,8 +32,6 @@ export const ServiceCreate = (props: any) => (
             <TextInput source="name" />
             <TextInput source="url" />
             <TextInput source="namespace" />
-            <DateInput source="createdAt" />
-            <DateInput source="updatedAt" />
         </SimpleForm>
     </Create>
 );
