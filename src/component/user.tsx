@@ -12,6 +12,8 @@ export const UserList = (props: any) => (
     <List {...props}>
         <Datagrid rowClick="edit">
             <TextField source="id" />
+            <TextField source="name" />
+            <TextField source="email" />
             <DateField source="createdAt" />
             <DateField source="updatedAt" />
         </Datagrid>
@@ -21,6 +23,8 @@ export const UserList = (props: any) => (
 export const UserEdit = (props: any) => (
     <Edit {...props}>
         <SimpleForm>
+            <TextInput source="name" />
+            <TextInput disabled source="email" />
             <ReferenceManyField
                 label="Authentication identities"
                 reference="identity" 
