@@ -1,5 +1,15 @@
 import React from 'react';
-import { List, Datagrid, DateField, TextField, UrlField, Edit, SimpleForm, DateInput, TextInput, Create} from 'react-admin';
+import {
+    Create,
+    Datagrid,
+    DateField,
+    Edit,
+    List,
+    SimpleForm,
+    TextField,
+    TextInput,
+    UrlField
+} from 'react-admin';
 
 export const ServiceList = (props: any) => (
     <List {...props}>
@@ -16,12 +26,12 @@ export const ServiceList = (props: any) => (
 export const ServiceEdit = (props: any) => (
     <Edit {...props}>
         <SimpleForm>
-            <TextInput disabled source="id" />
             <TextInput source="name" />
             <TextInput source="url" />
             <TextInput source="namespace" />
-            <DateInput disabled source="createdAt" />
-            <DateInput disabled source="updatedAt" />
+            <DateField source="createdAt" />
+            <DateField source="updatedAt" />
+            <TextField source="id" />
         </SimpleForm>
     </Edit>
 );

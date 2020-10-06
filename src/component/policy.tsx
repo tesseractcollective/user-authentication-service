@@ -1,17 +1,16 @@
 import React from 'react';
 import { 
-    List,
+    Create,
     Datagrid,
     DateField,
-    TextField,
-    ReferenceField,
     Edit,
-    SimpleForm,
-    TextInput,
-    DateInput,
+    List,
+    ReferenceField,
     ReferenceInput,
+    SimpleForm,
     SelectInput,
-    Create
+    TextField,
+    TextInput
 } from 'react-admin';
 
 export const PolicyList = (props: any) => (
@@ -33,7 +32,6 @@ export const PolicyList = (props: any) => (
 export const PolicyEdit = (props: any) => (
     <Edit {...props}>
         <SimpleForm>
-            <TextInput disabled source="id" />
             <TextInput source="name" />
             <ReferenceInput source="serviceId" reference="service">
                 <SelectInput optionText="name" />
@@ -41,8 +39,9 @@ export const PolicyEdit = (props: any) => (
             <TextInput source="actions" />
             <TextInput source="tables" />
             <TextInput source="hasuraServiceRole" />
-            <DateInput disabled source="createdAt" />
-            <DateInput disabled source="updatedAt" />
+            <DateField source="createdAt" />
+            <DateField source="updatedAt" />
+            <TextField source="id" />
         </SimpleForm>
     </Edit>
 );
@@ -50,7 +49,6 @@ export const PolicyEdit = (props: any) => (
 export const PolicyCreate = (props: any) => (
     <Create {...props}>
         <SimpleForm>
-            <TextInput disabled source="id" />
             <TextInput source="name" />
             <ReferenceInput source="serviceId" reference="service">
                 <SelectInput optionText="name" />
@@ -58,8 +56,9 @@ export const PolicyCreate = (props: any) => (
             <TextInput source="actions" />
             <TextInput source="tables" />
             <TextInput source="hasuraServiceRole" />
-            <DateInput disabled source="createdAt" />
-            <DateInput disabled source="updatedAt" />
+            <DateField source="createdAt" />
+            <DateField source="updatedAt" />
+            <TextField source="id" />
         </SimpleForm>
     </Create>
 );

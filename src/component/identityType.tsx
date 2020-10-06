@@ -1,11 +1,22 @@
 import React from 'react';
-import { List, Datagrid, DateField, TextField, Edit, SimpleForm, DateInput, TextInput, Create } from 'react-admin';
+import {
+    Create,
+    Datagrid,
+    DateField,
+    DateInput,
+    Edit,
+    List,
+    SimpleForm,
+    TextField,
+    TextInput
+} from 'react-admin';
+import { JsonField } from './JsonField';
 
 export const IdentityTypeList = (props: any) => (
     <List {...props}>
         <Datagrid rowClick="edit">
             <TextField source="name" />
-            <TextField source="meta" />
+            <JsonField {...props} source="meta" maxLength={30} />
             <DateField source="createdAt" />
             <DateField source="updatedAt" />
         </Datagrid>
@@ -18,6 +29,8 @@ export const IdentityTypeEdit = (props: any) => (
             <TextInput disabled source="id" />
             <TextInput source="name" />
             <TextInput source="meta" />
+            <DateInput disabled source="createdAt" />
+            <DateInput disabled source="updatedAt" />
         </SimpleForm>
     </Edit>
 );

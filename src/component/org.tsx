@@ -1,5 +1,16 @@
 import React from 'react';
-import { List, Datagrid, DateField, TextField, UrlField, Edit, SimpleForm, DateInput, TextInput, Create} from 'react-admin';
+import {
+    BooleanField,
+    BooleanInput,
+    Create,
+    Datagrid,
+    DateField,
+    Edit,
+    List,
+    SimpleForm,
+    TextField,
+    TextInput
+} from 'react-admin';
 
 export const OrgList = (props: any) => (
     <List {...props}>
@@ -7,6 +18,7 @@ export const OrgList = (props: any) => (
             <TextField source="name" />
             <DateField source="createdAt" />
             <DateField source="updatedAt" />
+            <BooleanField source="enabled" />
         </Datagrid>
     </List>
 );
@@ -14,10 +26,11 @@ export const OrgList = (props: any) => (
 export const OrgEdit = (props: any) => (
     <Edit {...props}>
         <SimpleForm>
-            <TextInput disabled source="id" />
             <TextInput source="name" />
-            <DateInput disabled source="createdAt" />
-            <DateInput disabled source="updatedAt" />
+            <BooleanInput source="enabled" />
+            <DateField source="createdAt" />
+            <DateField source="updatedAt" />
+            <TextField source="id" />
         </SimpleForm>
     </Edit>
 );

@@ -1,31 +1,29 @@
 import React from 'react';
-import { SingleFieldList } from 'react-admin';
 import { 
-    List,
+    ChipField,
+    Create,
     Datagrid,
     DateField,
-    TextField,
-    ReferenceManyField,
-    ChipField,
-    ReferenceField,
     Edit,
-    SimpleForm,
-    TextInput,
-    DateInput,
+    List,
+    ReferenceField,
     ReferenceInput,
+    ReferenceManyField,
     SelectInput,
-    Create
+    SimpleForm,
+    SingleFieldList,
+    TextField,
 } from 'react-admin';
 
 export const RoleList = (props: any) => (
     <List {...props}>
         <Datagrid rowClick="edit">
             <TextField source="name" />
-            <ReferenceManyField reference="rolePolicyMembers" target="roleId">
+            {/* <ReferenceManyField reference="rolePolicyMembers" target="roleId">
                 <SingleFieldList>
                     <ChipField source="policy.name" />
                 </SingleFieldList>
-            </ReferenceManyField>
+            </ReferenceManyField> */}
             <DateField source="createdAt" />
             <DateField source="updatedAt" />
         </Datagrid>
