@@ -24,8 +24,8 @@ export const IdentityList = (props: any) => (
                 <TextField source="name" />
             </ReferenceField>
             <JsonField {...props} source="data" maxLength={30} />
-            <DateField disabled source="createdAt" />
-            <DateField disabled source="updatedAt" />
+            <DateField source="createdAt" />
+            <DateField source="updatedAt" />
         </Datagrid>
     </List>
 );
@@ -41,9 +41,9 @@ export const IdentityEdit = (props: any) => {
                 <SelectInput optionText="name" />
             </ReferenceInput>
             <TextInput source="data" />
-            <TextField disabled source="id" />
-            <DateField disabled source="createdAt" />
-            <DateField disabled source="updatedAt" />
+            <DateField source="createdAt" />
+            <DateField source="updatedAt" />
+            <TextField source="id" />
         </SimpleForm>
     </Edit>
 )};

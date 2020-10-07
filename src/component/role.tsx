@@ -1,17 +1,8 @@
 import React from 'react';
 import { 
-    ChipField,
-    Create,
     Datagrid,
     DateField,
-    Edit,
     List,
-    ReferenceField,
-    ReferenceInput,
-    ReferenceManyField,
-    SelectInput,
-    SimpleForm,
-    SingleFieldList,
     TextField,
 } from 'react-admin';
 

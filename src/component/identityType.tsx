@@ -3,7 +3,6 @@ import {
     Create,
     Datagrid,
     DateField,
-    DateInput,
     Edit,
     List,
     SimpleForm,
@@ -26,11 +25,11 @@ export const IdentityTypeList = (props: any) => (
 export const IdentityTypeEdit = (props: any) => (
     <Edit {...props}>
         <SimpleForm>
-            <TextInput disabled source="id" />
             <TextInput source="name" />
             <TextInput source="meta" />
-            <DateInput disabled source="createdAt" />
-            <DateInput disabled source="updatedAt" />
+            <DateField source="createdAt" />
+            <DateField source="updatedAt" />
+            <TextField source="id" />
         </SimpleForm>
     </Edit>
 );
@@ -40,8 +39,8 @@ export const IdentityTypeCreate = (props: any) => (
         <SimpleForm>
             <TextInput source="name" />
             <TextInput source="meta" />
-            <DateInput disabled source="createdAt" />
-            <DateInput disabled source="updatedAt" />
+            <DateField source="createdAt" />
+            <DateField source="updatedAt" />
         </SimpleForm>
     </Create>
 );

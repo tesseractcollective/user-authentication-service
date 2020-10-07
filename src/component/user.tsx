@@ -1,30 +1,43 @@
-import React from 'react';
-import { ReferenceManyField } from 'react-admin';
-import { ChipField } from 'react-admin';
-import { SelectArrayInput } from 'react-admin';
-import { ReferenceFieldController } from 'react-admin';
-import { SingleFieldList } from 'react-admin';
-import { DateInput } from 'react-admin';
-import { TextInput } from 'react-admin';
-import { List, Datagrid, TextField, DateField, Edit, SimpleForm, Create } from 'react-admin';
+import React, {FunctionComponent, ReactNode, ReactElement } from 'react';
+import {
+    BooleanField,
+    BooleanInput,
+    ChipField,
+    Datagrid,
+    DateField,
+    Edit,
+    List,
+    ReferenceManyField,
+    Show,
+    SingleFieldList,
+    SimpleForm,
+    Tab,
+    TabbedShowLayout,
+    TextField,
+    TextInput,
+} from 'react-admin';
+import { UserIdentitiesList } from './userIdentities'
 
 export const UserList = (props: any) => (
     <List {...props}>
         <Datagrid rowClick="edit">
-            <TextField source="id" />
             <TextField source="name" />
             <TextField source="email" />
             <DateField source="createdAt" />
             <DateField source="updatedAt" />
+            <BooleanField source="enabled" />
         </Datagrid>
     </List>
 );
+
 
 export const UserEdit = (props: any) => (
     <Edit {...props}>
         <SimpleForm>
             <TextInput source="name" />
-            <TextInput disabled source="email" />
+            <BooleanInput source="enabled" />
+            <TextField source="email" />
+
             <ReferenceManyField
                 label="Authentication identities"
                 reference="identity" 
@@ -34,24 +47,28 @@ export const UserEdit = (props: any) => (
                     <ChipField source="identityTypeId" />
                 </SingleFieldList>
             </ReferenceManyField>
-            {/* <ReferenceFieldController
-                label="Identity"
-                reference="identity"
-                source="userId"
-            >
-                {({ referenceRecord }: { referenceRecord: any}) => {
-                    console.log("Printing")
-                    console.log(JSON.stringify(referenceRecord))
-                    return (
-                    <SelectArrayInput
-                        choice={referenceRecord ? referenceRecord.identityTypeId: []}
-                        source="id"
-                    />
-                )}}
-            </ReferenceFieldController> */}
-            <TextInput disabled source="id" />
-            <DateInput disabled source="createdAt" />
-            <DateInput disabled source="updatedAt" />
+
+            <DateField source="createdAt" />
+            <DateField source="updatedAt" />
+            <TextField source="id" />
         </SimpleForm>
     </Edit>
 );
+
+export const UserShow = (props: any) => {
+    return (
+        <Show {...props}>
+            <TabbedShowLayout>
+                <Tab label="Identities">
+                    <UserIdentitiesList />
+                </Tab>
+                <Tab label="Organizations">
+                    <UserList/>
+                </Tab>
+                <Tab label="User Permissions">
+                    <UserList/>
+                </Tab>
+            </TabbedShowLayout>
+        </Show>
+    )
+}

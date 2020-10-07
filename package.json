@@ -13,10 +13,10 @@
     "graphql": "^15.3.0",
     "ra-data-hasura-graphql": "^0.1.12",
     "react": "^16.13.1",
-    "react-admin": "^3.8.5",
+    "react-admin": "^3.9.2",
     "react-dom": "^16.13.1",
     "react-scripts": "3.4.3",
-    "typescript": "^3.7.5"
+    "typescript": "^4.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
