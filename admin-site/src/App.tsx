@@ -18,8 +18,8 @@ import { OrgCreate, OrgEdit, OrgList, OrgShow } from "./component/org";
 import { PolicyCreate, PolicyEdit, PolicyList } from "./component/policy";
 import { RoleList } from "./component/role";
 
-// const apiUrl = 'https://needed-pony-62.hasura.app/v1/graphql'
-const apiUrl = "http://localhost:8080/v1/graphql";
+const apiUrl = 'https://needed-pony-62.hasura.app/v1/graphql'
+// const apiUrl = "http://localhost:8080/v1/graphql";
 
 const App = () => {
   const [dataProvider, setDataProvider] = useState<any>(undefined);
