@@ -26,7 +26,7 @@ type Grants {
   tables: String!  # comma separated table names
   createdAt: timestamptz
   updatedAt: timestamptz
-}
+  u
 ```
 
 - Row permissions would have the following checks (Note: the action `%insert%` will be changed to match the permission (insert, select, update, or delete) and the tableName `%documentData%` will be changed to match the table the permission is on):
@@ -119,5 +119,18 @@ type Role {
   policies: [Policy!]!
   createdAt: timestamptz
   updatedAt: timestamptz
+}
+```
+
+### UserIdentity
+
+UserIdentities associate a user to an authentication provider.
+
+```gql
+type UserIdentity {
+  id: uuid!
+  userId: uuid!
+  identityTypeId: IdentityType!
+  data: String!
 }
 ```
