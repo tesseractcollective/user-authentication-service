@@ -1,0 +1,18 @@
+{
+  "_or": [
+    {
+      "_and": [
+        { "grants": { "granteeId": { "_eq": "X-Hasura-Owner-Id" } } },
+        { "grants": { "actions": { "_like": "%delete%" } } },
+        { "grants": { "tables": { "_like": "%documentData%" } } }
+      ]
+    },
+    {
+      "_and": [
+        { "grants": { "granteeId": { "_eq": "X-Hasura-Grant-Id" } } },
+        { "grants": { "actions": { "_like": "%delete%" } } },
+        { "grants": { "tables": { "_like": "%documentData%" } } }
+      ]
+    }
+  ]
+}

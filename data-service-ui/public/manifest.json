@@ -1,0 +1,8 @@
+{
+  "short_name": "user-authorization-service",
+  "name": "Tesseract User Authorization Service",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
