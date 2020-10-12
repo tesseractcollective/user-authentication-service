@@ -1,4 +1,6 @@
 import { nanoid } from 'nanoid';
+import jwt from 'jsonwebtoken';
+
 import { ObjectStore, HttpError, HasuraUserApi, HasuraUserBase, PasswordAuth, PasswordHash, log } from './tools';
 
 const ticketTimeToLive = 1000 * 15;
@@ -29,17 +31,18 @@ export default class JwtHasuraAuth<T extends HasuraUserBase> {
   readonly timeToLive: number;
   readonly revokable: boolean;
   readonly jwtKey: string;
-  readonly jwtDataCreator: (user: T) => { [key: string]: any };
 
   constructor(
     store: ObjectStore<UserPassword>,
     api: HasuraUserApi<T>,
+    jwtKey: string,
     minPasswordLength: number = 10
   ) {
     this.passwordStore = store;
     this.timeToLive = -1;
     this.revokable = false;
     this.api = api;
+    this.jwtKey = jwtKey;
     this.minPasswordLength = minPasswordLength;
   }
 
@@ -74,6 +77,8 @@ export default class JwtHasuraAuth<T extends HasuraUserBase> {
     if (!userPassword) {
       return Promise.reject(new HttpError(401, 'email already exists'));
     }
+
+    return Promise.reject('not implemented');
   }
 
   async getUser(email: string, password: string): Promise<T> {
@@ -92,5 +97,20 @@ export default class JwtHasuraAuth<T extends HasuraUserBase> {
       return Promise.reject(emailOrPasswordError);
     }
     return user;
+  }
+
+  createHasuraToken(jwtClaimsNamespace: string, allowedRoles: string[], role: string, ownerId: string, grantId?: string) {
+    const jwtData = {
+      sub: ownerId,
+      iat: Date.now() / 1000,
+      [jwtClaimsNamespace]: {
+        'x-hasura-allowed-roles': allowedRoles,
+        'x-hasura-default-role': role,
+        'x-hasura-owner-id': ownerId,
+        'x-hasura-grant-id': grantId,
+      }
+    }
+    const options = this.timeToLive > 0 ? { expiresIn: this.timeToLive } : undefined;
+    return jwt.sign(jwtData, this.jwtKey, options);
   }
 }

@@ -51,8 +51,15 @@ export default class AuthRouter<T extends HasuraUserBase> {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test);
         const password = this.validate<string>(request.body, 'password', 'string');
         const validEmail = String(email).toLowerCase();
+
+        // TODO: get role and permissions from user to get the namespace and service roles
         const user = await this.auth.getUser(validEmail, password);
-        response.json(user);
+        const nameSpace = '';
+        const allowedRoles = [''];
+        const role = '';
+        const token = this.auth.createHasuraToken(nameSpace, allowedRoles, role, user.id);
+
+        response.json({ token, user });
       } catch (error) {
         next(error);
       }

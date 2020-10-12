@@ -1075,6 +1075,16 @@ aws-serverless-express@^3.3.8:
     binary-case "^1.0.0"
     type-is "^1.6.16"
 
+aws-serverless-toolbox@^0.2.2:
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/aws-serverless-toolbox/-/aws-serverless-toolbox-0.2.2.tgz#f25af0e302a773df6d8ee3ffc0917bd9e77a6b43"
+  integrity sha512-y1ZaQP2JuogoslHvjOccmrhxd+/Y69E+sAQg/YhFh1Wy1ySbYtkhAKYN/NUv75Vamz4eLEaAoDBeZNueA1Lyjg==
+  dependencies:
+    aws-serverless-express "^3.3.8"
+    express "^4.17.1"
+    jsonwebtoken "^8.5.1"
+    source-map-support "^0.5.19"
+
 aws-sign2@~0.7.0:
   version "0.7.0"
   resolved "https://registry.yarnpkg.com/aws-sign2/-/aws-sign2-0.7.0.tgz#b46e890934a9591f2d2f6f86d7e6a9f1b3fe76a8"

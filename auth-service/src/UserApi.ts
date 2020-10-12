@@ -7,21 +7,6 @@ export interface User extends HasuraUserBase {
   role: string;
 }
 
-export const jwtDataCreatorForUser = (jwtClaimsNamespace: string) => {
-  return (user: User): { [key: string]: any } => {
-    return {
-      sub: user.id,
-      email: user.email,
-      iat: Date.now() / 1000,
-      [jwtClaimsNamespace]: {
-        'x-hasura-allowed-roles': ['admin', 'user'],
-        'x-hasura-default-role': user.role,
-        'x-hasura-user-id': user.id
-      }
-    };
-  };
-};
-
 export default class UserApi implements HasuraUserApi<User> {
   private readonly hasuraApi: HasuraApi;
   constructor(url: string, token: string) {
@@ -40,7 +25,7 @@ export default class UserApi implements HasuraUserApi<User> {
 
     return this.hasuraApi.executeHasuraQuery(payload, 'insert_users_one');
   }
-  
+
   async getUserById(id: string): Promise<User> {
     const query = `query getUser($id: uuid!) {
       users_by_pk(id:$id) {
