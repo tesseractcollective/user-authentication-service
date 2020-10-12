@@ -30,19 +30,19 @@ export default class JwtHasuraAuth<T extends HasuraUserBase> {
   private readonly minPasswordLength: number;
   readonly timeToLive: number;
   readonly revokable: boolean;
-  readonly jwtKey: string;
+  readonly jwtSecret: string;
 
   constructor(
     store: ObjectStore<UserPassword>,
     api: HasuraUserApi<T>,
-    jwtKey: string,
+    jwtSecret: string,
     minPasswordLength: number = 10
   ) {
     this.passwordStore = store;
     this.timeToLive = -1;
     this.revokable = false;
     this.api = api;
-    this.jwtKey = jwtKey;
+    this.jwtSecret = jwtSecret;
     this.minPasswordLength = minPasswordLength;
   }
 
@@ -111,6 +111,6 @@ export default class JwtHasuraAuth<T extends HasuraUserBase> {
       }
     }
     const options = this.timeToLive > 0 ? { expiresIn: this.timeToLive } : undefined;
-    return jwt.sign(jwtData, this.jwtKey, options);
+    return jwt.sign(jwtData, this.jwtSecret, options);
   }
 }

@@ -21,7 +21,7 @@ provider:
     STAGE: ${self:provider.stage}
     HASURA_ADMIN_SECRET: ${self:custom.secrets.hasuraAdminSecret}
     HASURA_URL: ${self:custom.secrets.hasuraUrl}
-    JWT_KEY: ${self:custom.secrets.jwtKey}
+    JWT_SECRET: ${self:custom.secrets.jwtSecret}
 
 plugins:
   # temp fix to hot reload issue (see https://github.com/dherault/serverless-offline/issues/864)
