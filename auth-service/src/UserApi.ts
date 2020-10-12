@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import { HasuraApi, HasuraUserApi, HasuraUserBase } from 'aws-serverless-toolbox';
+import { HasuraApi, HasuraUserApi, HasuraUserBase } from './tools';
 
 export interface User extends HasuraUserBase {
   id: string;
@@ -40,6 +40,7 @@ export default class UserApi implements HasuraUserApi<User> {
 
     return this.hasuraApi.executeHasuraQuery(payload, 'insert_users_one');
   }
+  
   async getUserById(id: string): Promise<User> {
     const query = `query getUser($id: uuid!) {
       users_by_pk(id:$id) {

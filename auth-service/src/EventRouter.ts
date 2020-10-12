@@ -1,19 +1,20 @@
 import { Router, NextFunction, Request, Response } from 'express';
+import { UserPassword } from './JwtHasuraAuth';
 import {
   HttpError,
   ObjectStore,
   HasuraTriggerPayload,
-  HasuraPersistedPassword,
   validateHasuraTriggerPayload,
   hasuraPayloadMatches,
   log
 } from './tools';
 
+
 export default class BaseRouter {
-  private readonly passwordStore: ObjectStore<HasuraPersistedPassword>;
+  private readonly passwordStore: ObjectStore<UserPassword>;
   readonly router = Router();
 
-  constructor(passwordStore: ObjectStore<HasuraPersistedPassword>) {
+  constructor(passwordStore: ObjectStore<UserPassword>) {
     this.passwordStore = passwordStore;
     this.setupRoutes();
   }
@@ -27,9 +28,9 @@ export default class BaseRouter {
 
     if (hasuraPayloadMatches(payload, 'DELETE', 'public', 'users')) {
       const user = payload.event.data.old;
-      const persistedPassword = await this.passwordStore.get(user.email);
-      if (persistedPassword?.userId !== user.id) {
-        throw new HttpError(400, `invalid persistedPassword ${JSON.stringify(persistedPassword)}`);
+      const userPassword = await this.passwordStore.get(user.email);
+      if (userPassword?.userId !== user.id) {
+        throw new HttpError(400, `invalid persistedPassword ${JSON.stringify(userPassword)}`);
       }
       log.info(`deleting user ${user.email} ${user.id}`);
       await this.passwordStore.delete(user.email);

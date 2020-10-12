@@ -10,7 +10,7 @@ import {
 
 import EventRouter from './EventRouter';
 import UserApi, { jwtDataCreatorForUser, User } from './UserApi';
-import JwtHasuraAuth, { HasuraPersistedPassword } from './JwtHasuraAuth';
+import JwtHasuraAuth, { UserPassword } from './JwtHasuraAuth';
 import HasuraAuthRouter from './AuthRouter';
 
 const region = getEnvVar('REGION');
@@ -20,9 +20,9 @@ const hasuraUrl = getEnvVar('HASURA_URL');
 const hasuraAdminSecret = getEnvVar('HASURA_ADMIN_SECRET');
 const passwordTable = getEnvVar('PASSWORD_TABLE');
 
-const passwordStore = new DynamoDbObjectStore<HasuraPersistedPassword>(passwordTable, region);
+const passwordStore = new DynamoDbObjectStore<UserPassword>(passwordTable, region);
 const api = new UserApi(hasuraUrl, hasuraAdminSecret);
-const auth = new JwtHasuraAuth<User>(passwordStore, api, jwtKey, jwtDataCreatorForUser(jwtClaimsNamespace));
+const auth = new JwtHasuraAuth<User>(passwordStore, api);
 
 const authRouter = new HasuraAuthRouter(auth);
 const apiGatewayExpressAuth = new ApiGatewayExpress({ '(/dev)?/auth/': authRouter.router });

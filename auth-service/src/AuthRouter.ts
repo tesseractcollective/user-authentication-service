@@ -40,7 +40,7 @@ export default class AuthRouter<T extends HasuraUserBase> {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test);
         const password = this.validate<string>(request.body, 'password', 'string');
         const validEmail = String(email).toLowerCase();
-        const result = await this.auth.addPassword(validEmail, password);
+        const result = await this.auth.createUser(validEmail, password);
         response.json(result);
       } catch (error) {
         next(error);
@@ -51,30 +51,27 @@ export default class AuthRouter<T extends HasuraUserBase> {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test);
         const password = this.validate<string>(request.body, 'password', 'string');
         const validEmail = String(email).toLowerCase();
-        const result = await this.auth.verifyPassword(validEmail, password);
-        response.json(result);
+        const user = await this.auth.getUser(validEmail, password);
+        response.json(user);
       } catch (error) {
         next(error);
       }
     });
-    this.router.post('/logout', async (request: Request, response: Response, next: NextFunction) => {
-      // TODO: delete refresh tokens
+    this.router.post('/email-verify/request', async (request: Request, response: Response, next: NextFunction) => {
+      
     });
-    this.router.post('/activate', async (request: Request, response: Response, next: NextFunction) => {
+    this.router.post('/email-verify/verify', async (request: Request, response: Response, next: NextFunction) => {
       
     });
     this.router.post('/token/refresh', async (request: Request, response: Response, next: NextFunction) => {
     });
-    this.router.post('/token/revoke', async (request: Request, response: Response, next: NextFunction) => {
-    });
     this.router.post('/delete', async (request: Request, response: Response, next: NextFunction) => {
-    });
-    this.router.post('/change-password', async (request: Request, response: Response, next: NextFunction) => {
     });
     this.router.post('/change-password/request', async (request: Request, response: Response, next: NextFunction) => {
     });
-    this.router.post('/change-password/change', async (request: Request, response: Response, next: NextFunction) => {
+    this.router.post('/change-password/verify', async (request: Request, response: Response, next: NextFunction) => {
     });
+    // with Twilio later
     this.router.post('/mobile-verify/request', async (request: Request, response: Response, next: NextFunction) => {
     });
     this.router.post('/mobile-verify/verify', async (request: Request, response: Response, next: NextFunction) => {

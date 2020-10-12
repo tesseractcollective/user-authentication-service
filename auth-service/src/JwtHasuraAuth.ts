@@ -1,6 +1,5 @@
-import jwt from 'jsonwebtoken';
-import { nanoid } from 'nanoid'
-import { ObjectStore, HttpError, HasuraUserApi, HasuraUserBase, PasswordAuth, PasswordHash } from './tools';
+import { nanoid } from 'nanoid';
+import { ObjectStore, HttpError, HasuraUserApi, HasuraUserBase, PasswordAuth, PasswordHash, log } from './tools';
 
 const ticketTimeToLive = 1000 * 15;
 
@@ -17,7 +16,10 @@ export interface UserPassword {
   hash: PasswordHash,
   emailVerify?: VerifyTicket,
   mobileVerify?: VerifyTicket, 
+  passwordResetTicket?: VerifyTicket,
 }
+
+const emailOrPasswordError = new HttpError(400, 'incorrect email or password');
 
 export default class JwtHasuraAuth<T extends HasuraUserBase> {
   private readonly passwordAuth = new PasswordAuth();
@@ -77,15 +79,18 @@ export default class JwtHasuraAuth<T extends HasuraUserBase> {
   async getUser(email: string, password: string): Promise<T> {
     const userPassword = await this.passwordStore.get(email);
     if (!userPassword) {
-      return Promise.reject(new HttpError(400, 'incorrect id or password'));
+      return Promise.reject(emailOrPasswordError);
     }
 
     const isValid = await this.passwordAuth.verifyHash(userPassword.hash, password);
     if (!isValid) {
-      return Promise.reject(new HttpError(400, 'incorrect id or password'));
+      return Promise.reject(emailOrPasswordError);
     }
 
     const user = await this.api.getUserById(userPassword.userId);
+    if (!user) {
+      return Promise.reject(emailOrPasswordError);
+    }
     return user;
   }
 }
