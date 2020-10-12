@@ -15,7 +15,6 @@ import HasuraAuthRouter from './AuthRouter';
 
 const region = getEnvVar('REGION');
 const jwtKey = getEnvVar('JWT_KEY');
-const jwtClaimsNamespace = getEnvVar('JWT_CLAIMS_NAMESPACE');
 const hasuraUrl = getEnvVar('HASURA_URL');
 const hasuraAdminSecret = getEnvVar('HASURA_ADMIN_SECRET');
 const passwordTable = getEnvVar('PASSWORD_TABLE');

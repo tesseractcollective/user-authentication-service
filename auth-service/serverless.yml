@@ -1,4 +1,4 @@
-service: hasura-user-service-example
+service: tesseract-user-authentication
 
 custom:
   secrets: ${ssm:/aws/reference/secretsmanager/${self:service}-${self:provider.stage}~true}
@@ -22,7 +22,6 @@ provider:
     HASURA_ADMIN_SECRET: ${self:custom.secrets.hasuraAdminSecret}
     HASURA_URL: ${self:custom.secrets.hasuraUrl}
     JWT_KEY: ${self:custom.secrets.jwtKey}
-    JWT_CLAIMS_NAMESPACE: ${self:custom.secrets.jwtClaimsNamespace}
 
 plugins:
   # temp fix to hot reload issue (see https://github.com/dherault/serverless-offline/issues/864)
