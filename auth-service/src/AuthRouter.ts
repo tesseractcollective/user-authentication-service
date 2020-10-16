@@ -1,6 +1,8 @@
 import { Router, NextFunction, Request, Response } from 'express';
 import { HttpError, HasuraUserBase } from './tools';
-import JwtHasuraAuth from './JwtHasuraAuth';
+import JwtHasuraAuth, { VerifyTicket } from './JwtHasuraAuth';
+import AWS from 'aws-sdk';
+import { passwordResetTemplate } from './tools/email';
 
 // HTML Standard: https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
 const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
@@ -37,7 +39,7 @@ export default class AuthRouter<T extends HasuraUserBase> {
     });
     this.router.post('/register', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test);
+        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex));
         const password = this.validate<string>(request.body, 'password', 'string');
         const validEmail = String(email).toLowerCase();
         const result = await this.auth.createUser(validEmail, password);
@@ -48,7 +50,7 @@ export default class AuthRouter<T extends HasuraUserBase> {
     });
     this.router.post('/login', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test);
+        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex));
         const password = this.validate<string>(request.body, 'password', 'string');
         const validEmail = String(email).toLowerCase();
 
@@ -75,8 +77,64 @@ export default class AuthRouter<T extends HasuraUserBase> {
     this.router.post('/delete', async (request: Request, response: Response, next: NextFunction) => {
     });
     this.router.post('/change-password/request', async (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex));
+        const validEmail = String(email).toLowerCase();
+        let userExists = await this.auth.userExists(validEmail)
+        if (userExists) {
+          let ticket: VerifyTicket = await this.auth.addPasswordResetTicket(email);
+          let ses = new AWS.SES();
+          let tokenLink = `http://localhost:3000/dev/auth/change-password/verify/${ticket.ticket}`;
+          let params = passwordResetTemplate(email, tokenLink);
+          await ses.sendEmail(params).promise()
+            .then(data => console.log('Password reset email sent successfully. MessageId: ' + data.MessageId))
+            .catch(err => {
+              console.error(err, err.stack);
+              throw new HttpError(500, 'Unable to send password reset email, please try again.');
+            })
+        } else {
+          console.log('User email ' + email + ' does not exist, no password reset email sent.');
+        }
+        response.send();
+      } catch (error) {
+        next(error)
+      }
+    });
+    this.router.post('/change-password/', async (request: Request, response: Response, next: NextFunction) => {
+      // return a form for resetting the password
+      // try {
+      // const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex));
+      // const ticket = this.validate<string>(request.query, 'ticket', 'string');
+      // let user = await this.auth.getUserPlain(email);
+      // } catch (error) {
+      //   next(error)
+      // }
     });
     this.router.post('/change-password/verify', async (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex));
+        const ticket = this.validate<string>(request.body, 'ticket', 'string');
+        const password = this.validate<string>(request.body, 'password', 'string');
+        let user = await this.auth.getUserPlain(email);
+        if (user && user.passwordResetTicket) {
+          if (user.passwordResetTicket.expires < Date.now()) {
+            console.log(`The expiration date of ${user.passwordResetTicket.expires} is older than today: ${Date.now()}`);
+            this.auth.removePasswordResetTicket(email)
+            throw new HttpError(400, 'Your password reset ticket has expired. Please start the password reset process again.');
+          } else if (user.passwordResetTicket.ticket === ticket) {
+            try {
+              await this.auth.updatePassword(email, password);
+              response.send();
+            } catch (error) {
+              throw error;
+            }
+          }
+        } else {
+          throw new HttpError(400, 'An error occured, please start the password reset process again.');
+        }
+      } catch (error) {
+        next(error)
+      }
     });
     // with Twilio later
     this.router.post('/mobile-verify/request', async (request: Request, response: Response, next: NextFunction) => {

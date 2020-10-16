@@ -15,27 +15,25 @@ export default class UserApi implements HasuraUserApi<User> {
 
   async createUserWithEmail(email: string): Promise<User> {
     const mutation = `mutation createUser($email: String) {
-      insert_users_one(object: {email: $email}) {
+      insert_user_one(object: {email: $email}) {
         id
         email
-        role
       }
     }`;
     const payload = { query: mutation, variables: { email } };
 
-    return this.hasuraApi.executeHasuraQuery(payload, 'insert_users_one');
+    return this.hasuraApi.executeHasuraQuery(payload, 'insert_user_one');
   }
 
   async getUserById(id: string): Promise<User> {
     const query = `query getUser($id: uuid!) {
-      users_by_pk(id:$id) {
+      user_by_pk(id:$id) {
         id
         email
-        role
       }
     }`;
     const payload = { query, variables: { id } };
 
-    return this.hasuraApi.executeHasuraQuery(payload, 'users_by_pk');
+    return this.hasuraApi.executeHasuraQuery(payload, 'user_by_pk');
   }
 }
