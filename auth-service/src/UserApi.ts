@@ -25,6 +25,18 @@ export default class UserApi implements HasuraUserApi<User> {
     return this.hasuraApi.executeHasuraQuery(payload, 'insert_user_one');
   }
 
+  async deleteUserById(id: string): Promise<User> {
+    const mutation = `mutation deleteUser($id: uuid!) {
+      delete_user_by_pk(id: $id) {
+        id
+        email
+      }
+    }`
+    const payload = { query: mutation, variables: { id } };
+
+    return this.hasuraApi.executeHasuraQuery(payload, 'delete_user_by_pk');
+  }
+
   async getUserById(id: string): Promise<User> {
     const query = `query getUser($id: uuid!) {
       user_by_pk(id:$id) {

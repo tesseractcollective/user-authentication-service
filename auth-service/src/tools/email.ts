@@ -73,16 +73,55 @@ export const emailVerificationTemplate = (email: string, link: string) => {
       },
       Message: {
         Body: {
-          Text: {
+          Html: {
             Charset: "UTF-8",
             Data: message
           }
         },
         Subject: {
-          Charset: 'UTF-9',
-          Data: 'Password reset from ' + PRODUCT_NAME
+          Charset: 'UTF-8',
+          Data: 'Please verify your email address for ' + PRODUCT_NAME
         }
       },
       Source: SOURCE_EMAIL
     }
+}
+
+/*
+ * SES params for email requesting verification for email ownership.
+ */
+export const emailAlreadyVerifiedTemplate = (email: string) => {
+  const message = `<html>
+<body>
+<p>Dear ${PRODUCT_NAME} User,</p>
+
+<p>We have received a request to authorize this email address for use with our systems. This email is already verified with our system. At this time, no further action is required.</p>
+  
+<p>If you did not request this verification, please disregard this email.</p>
+
+<p>Sincerely,</p>
+
+<p>The ${PRODUCT_NAME} Team.</p>
+</body>
+</html>`;
+  return {
+    Destination: {
+      ToAddresses: [
+        email
+      ]
+    },
+    Message: {
+      Body: {
+        Html: {
+          Charset: "UTF-8",
+          Data: message
+        }
+      },
+      Subject: {
+        Charset: 'UTF-8',
+        Data: 'Email confirmation for ' + PRODUCT_NAME
+      }
+    },
+    Source: SOURCE_EMAIL
+  }
 }

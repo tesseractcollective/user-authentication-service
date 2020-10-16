@@ -1,8 +1,8 @@
 import { Router, NextFunction, Request, Response } from 'express';
 import { HttpError, HasuraUserBase } from './tools';
 import JwtHasuraAuth, { VerifyTicket } from './JwtHasuraAuth';
-import AWS from 'aws-sdk';
-import { passwordResetTemplate } from './tools/email';
+import AWS, { SES } from 'aws-sdk';
+import { passwordResetTemplate, emailVerificationTemplate, emailAlreadyVerifiedTemplate } from './tools/email';
 
 // HTML Standard: https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
 const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
@@ -39,23 +39,32 @@ export default class AuthRouter<T extends HasuraUserBase> {
     });
     this.router.post('/register', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex));
+        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
         const password = this.validate<string>(request.body, 'password', 'string');
-        const validEmail = String(email).toLowerCase();
-        const result = await this.auth.createUser(validEmail, password);
-        response.json(result);
+        const user = await this.auth.createUser(email, password);
+        if (user) {
+          let params: SES.Types.SendEmailRequest;
+          const ticket = await this.auth.addEmailVerifyTicket(email);
+          let tokenLink = `http://localhost:3000/dev/auth/email-verify/verify?ticket=${ticket.ticket}&email=${email}`;
+          params = emailVerificationTemplate(email, tokenLink);
+          await new AWS.SES().sendEmail(params).promise()
+            .then(data => console.log(`Email verification email for ${email} sent successfully. MessageId: ${data.MessageId}`))
+            .catch(err => console.error('Unable to send verification email ' + err, err.stack));
+        } else {
+          console.log(`User email ${email} does not exist, no email verification email sent.`);
+        }
+        response.status(201).json({'id': user.userId, 'email': user.id});
       } catch (error) {
         next(error);
       }
     });
     this.router.post('/login', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex));
+        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
         const password = this.validate<string>(request.body, 'password', 'string');
-        const validEmail = String(email).toLowerCase();
 
         // TODO: get role and permissions from user to get the namespace and service roles
-        const user = await this.auth.getUser(validEmail, password);
+        const user = await this.auth.getUser(email, password);
         const nameSpace = '';
         const allowedRoles = [''];
         const role = '';
@@ -67,26 +76,76 @@ export default class AuthRouter<T extends HasuraUserBase> {
       }
     });
     this.router.post('/email-verify/request', async (request: Request, response: Response, next: NextFunction) => {
-      
+      try {
+        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
+        let user = await this.auth.getUserPlain(email);
+        if (user) {
+          let params: SES.Types.SendEmailRequest;
+          if (user.emailVerify?.verified !== true) {
+            const ticket = await this.auth.addEmailVerifyTicket(email);
+            // build link for email
+            const env = process.env.STAGE;
+            const stage = env !== undefined && ['dev', 'stg'].includes(env) ? `/${env}` : '';
+            const tokenLink = `${request.protocol}://${request.headers.host}${stage}/auth/email-verify/verify?ticket=${ticket.ticket}&email=${email}`;
+            params = emailVerificationTemplate(email, tokenLink);
+          } else {
+            params = emailAlreadyVerifiedTemplate(email)
+          }
+          await new AWS.SES().sendEmail(params).promise()
+            .then(data => console.log(`Email verification email for ${email} sent successfully. MessageId: ${data.MessageId}`))
+            .catch(err => {
+              console.error(err, err.stack);
+              throw new HttpError(500, 'Unable to send email verification email, please try again.');
+            })
+        } else {
+          console.log(`User email ${email} does not exist, no email verification email sent.`);
+        }
+        response.send();
+      } catch (error) {
+        next(error)
+      }
     });
-    this.router.post('/email-verify/verify', async (request: Request, response: Response, next: NextFunction) => {
-      
+    this.router.get('/email-verify/verify', async (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
+        const ticket = this.validate<string>(request.query, 'ticket', 'string');
+        await this.auth.verifyEmail(email, ticket)
+        .then(data => {
+          console.log(`Email: ${email} verified successfully`)
+          response.sendFile(__dirname + '/views/emailVerify.html')
+        })
+        .catch(err => {throw new HttpError(500, err.message)});
+      } catch (error) {
+        next(error)
+      }
     });
     this.router.post('/token/refresh', async (request: Request, response: Response, next: NextFunction) => {
     });
-    this.router.post('/delete', async (request: Request, response: Response, next: NextFunction) => {
+    this.router.delete('/user/', async (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
+        await this.auth.deleteUser(email)
+        .catch(err => {
+          console.error(`Error deleting a user: ${err}`)
+          throw new HttpError(500, 'Error deleting user, please try again later.')
+        });
+        response.send();
+      } catch (error) {
+        next(error);
+      }
     });
     this.router.post('/change-password/request', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex));
-        const validEmail = String(email).toLowerCase();
-        let userExists = await this.auth.userExists(validEmail)
+        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
+        let userExists = await this.auth.userExists(email)
         if (userExists) {
           let ticket: VerifyTicket = await this.auth.addPasswordResetTicket(email);
-          let ses = new AWS.SES();
-          let tokenLink = `http://localhost:3000/dev/auth/change-password?ticket=${ticket.ticket}&email=${email}`;
-          let params = passwordResetTemplate(email, tokenLink);
-          await ses.sendEmail(params).promise()
+          // build link for email
+          const env = process.env.STAGE;
+          const stage = env !== undefined && ['dev', 'stg'].includes(env) ? `/${env}` : '';
+          const tokenLink = `${request.protocol}://${request.headers.host}${stage}/auth/change-password?ticket=${ticket.ticket}&email=${email}`;
+          const params = passwordResetTemplate(email, tokenLink);
+          await new AWS.SES().sendEmail(params).promise()
             .then(data => console.log(`Password reset email for ${email} sent successfully. MessageId: ${data.MessageId}`))
             .catch(err => {
               console.error(err, err.stack);
@@ -111,7 +170,7 @@ export default class AuthRouter<T extends HasuraUserBase> {
     });
     this.router.post('/change-password/verify', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex));
+        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
         const ticket = this.validate<string>(request.body, 'ticket', 'string');
         const password = this.validate<string>(request.body, 'password', 'string');
         let user = await this.auth.getUserPlain(email);
