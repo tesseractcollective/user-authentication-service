@@ -66,7 +66,7 @@ export default class JwtHasuraAuth<T extends HasuraUserBase> {
       return Promise.reject(new HttpError(409, 'email already exists'));
     }
     if (password.length < this.minPasswordLength) {
-      return Promise.reject(new HttpError(400, `password must be ${this.minPasswordLength} or more characters long`));
+      return Promise.reject(new HttpError(400, `password must be ${this.minPasswordLength} characters or longer`));
     }
 
     const user = await this.api.createUserWithEmail(email);
@@ -92,7 +92,7 @@ export default class JwtHasuraAuth<T extends HasuraUserBase> {
       return Promise.reject(new HttpError(404, 'email does not exist'));
     }
     if (password.length < this.minPasswordLength) {
-      return Promise.reject(new HttpError(400, `password must be ${this.minPasswordLength} or more characters long`));
+      return Promise.reject(new HttpError(400, `password must be ${this.minPasswordLength} characters or longer`));
     }
     delete userPassword.passwordResetTicket;
     userPassword.hash = await this.passwordAuth.createHash(password);

@@ -84,7 +84,7 @@ export default class AuthRouter<T extends HasuraUserBase> {
         if (userExists) {
           let ticket: VerifyTicket = await this.auth.addPasswordResetTicket(email);
           let ses = new AWS.SES();
-          let tokenLink = `http://localhost:3000/dev/auth/change-password/verify/${ticket.ticket}`;
+          let tokenLink = `http://localhost:3000/dev/auth/change-password?ticket=${ticket.ticket}&email=${email}`;
           let params = passwordResetTemplate(email, tokenLink);
           await ses.sendEmail(params).promise()
             .then(data => console.log('Password reset email sent successfully. MessageId: ' + data.MessageId))
@@ -100,15 +100,15 @@ export default class AuthRouter<T extends HasuraUserBase> {
         next(error)
       }
     });
-    this.router.post('/change-password/', async (request: Request, response: Response, next: NextFunction) => {
-      // return a form for resetting the password
-      // try {
-      // const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex));
-      // const ticket = this.validate<string>(request.query, 'ticket', 'string');
-      // let user = await this.auth.getUserPlain(email);
-      // } catch (error) {
-      //   next(error)
-      // }
+    this.router.get('/change-password', async (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex));
+        const ticket = this.validate<string>(request.query, 'ticket', 'string');
+        console.log("Serving up view at: " + __dirname + 'views/passwordReset.html');
+        response.sendFile(__dirname + '/views/passwordReset.html')
+      } catch (error) {
+        next(error)
+      }
     });
     this.router.post('/change-password/verify', async (request: Request, response: Response, next: NextFunction) => {
       try {
@@ -124,7 +124,7 @@ export default class AuthRouter<T extends HasuraUserBase> {
           } else if (user.passwordResetTicket.ticket === ticket) {
             try {
               await this.auth.updatePassword(email, password);
-              response.send();
+              response.status(204).send();
             } catch (error) {
               throw error;
             }
