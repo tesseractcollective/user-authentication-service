@@ -62,7 +62,8 @@ async function promptForValueAndTest(prompt, test) {
 
   const previousSecret = await secretsmanager
     .getSecretValue({ SecretId: secretId })
-    .promise();
+    .promise()
+    .catch(() => {}) || {};
   let previousPayload = {};
   if (previousSecret.SecretString) {
     previousPayload = JSON.parse(previousSecret.SecretString);
