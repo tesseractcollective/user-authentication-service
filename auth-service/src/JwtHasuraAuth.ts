@@ -125,7 +125,6 @@ export default class JwtHasuraAuth<T extends HasuraUserBase> {
     console.log("User state before reducer");
     console.log(JSON.stringify(user));
     if (user) {
-      console.log("TICKET TTL IS: " + ticketTimeToLive)
       user.passwordResetTicket = { 
         ticket: nanoid(),
         value: email,
