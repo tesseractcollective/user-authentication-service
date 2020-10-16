@@ -87,13 +87,13 @@ export default class AuthRouter<T extends HasuraUserBase> {
           let tokenLink = `http://localhost:3000/dev/auth/change-password?ticket=${ticket.ticket}&email=${email}`;
           let params = passwordResetTemplate(email, tokenLink);
           await ses.sendEmail(params).promise()
-            .then(data => console.log('Password reset email sent successfully. MessageId: ' + data.MessageId))
+            .then(data => console.log(`Password reset email for ${email} sent successfully. MessageId: ${data.MessageId}`))
             .catch(err => {
               console.error(err, err.stack);
               throw new HttpError(500, 'Unable to send password reset email, please try again.');
             })
         } else {
-          console.log('User email ' + email + ' does not exist, no password reset email sent.');
+          console.log(`User email ${email} does not exist, no password reset email sent.`);
         }
         response.send();
       } catch (error) {
@@ -104,7 +104,6 @@ export default class AuthRouter<T extends HasuraUserBase> {
       try {
         const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex));
         const ticket = this.validate<string>(request.query, 'ticket', 'string');
-        console.log("Serving up view at: " + __dirname + 'views/passwordReset.html');
         response.sendFile(__dirname + '/views/passwordReset.html')
       } catch (error) {
         next(error)
