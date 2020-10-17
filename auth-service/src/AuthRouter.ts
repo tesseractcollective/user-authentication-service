@@ -43,10 +43,12 @@ export default class AuthRouter<T extends HasuraUserBase> {
         const password = this.validate<string>(request.body, 'password', 'string');
         const user = await this.auth.createUser(email, password);
         if (user) {
-          let params: SES.Types.SendEmailRequest;
           const ticket = await this.auth.addEmailVerifyTicket(email);
-          let tokenLink = `http://localhost:3000/dev/auth/email-verify/verify?ticket=${ticket.ticket}&email=${email}`;
-          params = emailVerificationTemplate(email, tokenLink);
+          // build link for email
+          const env = process.env.STAGE;
+          const stage = env !== undefined && ['dev', 'stg'].includes(env) ? `/${env}` : '';
+          const tokenLink = `${request.protocol}://${request.headers.host}${stage}/auth/email-verify/verify?ticket=${ticket.ticket}&email=${email}`;
+          let params = emailVerificationTemplate(email, tokenLink);
           await new AWS.SES().sendEmail(params).promise()
             .then(data => console.log(`Email verification email for ${email} sent successfully. MessageId: ${data.MessageId}`))
             .catch(err => console.error('Unable to send verification email ' + err, err.stack));
@@ -122,6 +124,7 @@ export default class AuthRouter<T extends HasuraUserBase> {
     this.router.post('/token/refresh', async (request: Request, response: Response, next: NextFunction) => {
     });
     this.router.delete('/user/', async (request: Request, response: Response, next: NextFunction) => {
+      // TODO modify to not call hasura
       try {
         const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
         await this.auth.deleteUser(email)
