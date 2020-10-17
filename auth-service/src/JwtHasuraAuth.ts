@@ -1,8 +1,8 @@
 import { nanoid } from 'nanoid';
 import jwt from 'jsonwebtoken';
 
-import { ObjectStore, HttpError, PasswordAuth, PasswordHash, log } from '@tesseractcollective/serverless-toolbox';
-import { HasuraUserApi, HasuraUserBase } from '@tesseractcollective/hasura-toolbox';
+import { ObjectStore, HttpError, PasswordAuth, PasswordHash } from '@tesseractcollective/serverless-toolbox';
+import UserApi, { User } from './UserApi';
 
 
 const ticketTimeToLive = 1000 * 60 * 60 * 24; // 24 hours
@@ -33,10 +33,10 @@ export interface UserPassword {
 
 const emailOrPasswordError = new HttpError(400, 'incorrect email or password');
 
-export default class JwtHasuraAuth<T extends HasuraUserBase> {
+export default class JwtHasuraAuth {
   private readonly passwordAuth = new PasswordAuth();
   private readonly passwordStore: ObjectStore<UserPassword>;
-  private readonly api: HasuraUserApi<T>;
+  private readonly api: UserApi;
   private readonly minPasswordLength: number;
   readonly timeToLive: number;
   readonly revokable: boolean;
@@ -44,7 +44,7 @@ export default class JwtHasuraAuth<T extends HasuraUserBase> {
 
   constructor(
     store: ObjectStore<UserPassword>,
-    api: HasuraUserApi<T>,
+    api: UserApi,
     jwtSecret: string,
     minPasswordLength: number = 10
   ) {
@@ -230,7 +230,7 @@ export default class JwtHasuraAuth<T extends HasuraUserBase> {
    * @param email User account email.
    * @param password Account password.
    */
-  async getUser(email: string, password: string): Promise<T> {
+  async getUser(email: string, password: string): Promise<User> {
     const userPassword = await this.passwordStore.get(email);
     if (!userPassword) {
       return Promise.reject(emailOrPasswordError);

@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import { HasuraApi, HasuraUserApi, HasuraUserBase } from './tools';
+import { HasuraApi, HasuraUserApi, HasuraUserBase } from '@tesseractcollective/hasura-toolbox';
 
 export interface User extends HasuraUserBase {
   id: string;

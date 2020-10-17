@@ -1,18 +1,19 @@
 import { Router, NextFunction, Request, Response } from 'express';
-import { HttpError, HasuraUserBase } from './tools';
+import { HasuraUserBase } from '@tesseractcollective/hasura-toolbox';
+import { HttpError } from '@tesseractcollective/serverless-toolbox';
 import JwtHasuraAuth, { VerifyTicket } from './JwtHasuraAuth';
 import AWS, { SES } from 'aws-sdk';
-import { passwordResetTemplate, emailVerificationTemplate, emailAlreadyVerifiedTemplate } from './tools/email';
+import { passwordResetTemplate, emailVerificationTemplate, emailAlreadyVerifiedTemplate } from './email';
 
 // HTML Standard: https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
 const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
-export default class AuthRouter<T extends HasuraUserBase> {
-  readonly auth: JwtHasuraAuth<T>;
+export default class AuthRouter {
+  readonly auth: JwtHasuraAuth;
   readonly router = Router();
   readonly allowedOrigins: string;
 
-  constructor(auth: JwtHasuraAuth<T>, allowedOrigins: string = '*') {
+  constructor(auth: JwtHasuraAuth, allowedOrigins: string = '*') {
     this.auth = auth;
     this.allowedOrigins = allowedOrigins;
     this.setupRoutes();
