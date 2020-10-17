@@ -53,6 +53,10 @@ functions:
           method: ANY
           private: true
 
+package:
+  include:
+  - src/views/*
+
 resources:
   Resources:
     PasswordTable: ${file(./serverlessConfig.js):config.passwordTableResource}

@@ -11,6 +11,8 @@
     "deploy:prod": "serverless deploy --stage prod"
   },
   "dependencies": {
+    "@tesseractcollective/hasura-toolbox": "^0.1.1",
+    "@tesseractcollective/serverless-toolbox": "^0.3.3",
     "aws-serverless-express": "^3.3.8",
     "aws-serverless-toolbox": "^0.2.2",
     "express": "^4.17.1",

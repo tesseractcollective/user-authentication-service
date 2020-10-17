@@ -630,6 +630,20 @@
     request "^2.88.0"
     request-promise-native "^1.0.8"
 
+"@tesseractcollective/hasura-toolbox@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@tesseractcollective/hasura-toolbox/-/hasura-toolbox-0.1.1.tgz#1d6ace74b5ec42e4d89e56e387c7368afcee3b00"
+  integrity sha512-vtRE/KlTnIMCEXY4AHDI4D22omWHWVdRUiVJhF1tx+XAT6objmWBzkBxDV5GYute6mJdFMWsxiLf/nGjKhIPSw==
+
+"@tesseractcollective/serverless-toolbox@^0.3.3":
+  version "0.3.3"
+  resolved "https://registry.yarnpkg.com/@tesseractcollective/serverless-toolbox/-/serverless-toolbox-0.3.3.tgz#cce8aca516fba398934bf20ed15dce5d7c51ad68"
+  integrity sha512-D29oCGD74GS5E63m9iwihZ/T1AiplLFe9umLiNu4MjebEAgURnrpxTcfrlI/ERi1OjPse5jc0fcvbfqOwkjyQA==
+  dependencies:
+    aws-serverless-express "^3.3.8"
+    express "^4.17.1"
+    jsonwebtoken "^8.5.1"
+
 "@types/aws-lambda@*":
   version "8.10.62"
   resolved "https://registry.yarnpkg.com/@types/aws-lambda/-/aws-lambda-8.10.62.tgz#857de3f73ab503136f2eefe965b1b67e5f397b62"
