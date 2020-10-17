@@ -1,7 +1,9 @@
 import { nanoid } from 'nanoid';
 import jwt from 'jsonwebtoken';
 
-import { ObjectStore, HttpError, HasuraUserApi, HasuraUserBase, PasswordAuth, PasswordHash, log } from './tools';
+import { ObjectStore, HttpError, PasswordAuth, PasswordHash, log } from '@tesseractcollective/serverless-toolbox';
+import { HasuraUserApi, HasuraUserBase } from '@tesseractcollective/hasura-toolbox';
+
 
 const ticketTimeToLive = 1000 * 60 * 60 * 24; // 24 hours
 
