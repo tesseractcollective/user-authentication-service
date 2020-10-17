@@ -116,7 +116,7 @@ export default class AuthRouter<T extends HasuraUserBase> {
           console.log(`Email: ${email} verified successfully`)
           response.sendFile(__dirname + '/views/emailVerify.html')
         })
-        .catch(err => {throw new HttpError(500, err.message)});
+        .catch(err => {throw new HttpError(400, err.message)});
       } catch (error) {
         next(error)
       }
