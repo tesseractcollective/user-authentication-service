@@ -1,8 +1,8 @@
 import { Router, NextFunction, Request, Response } from 'express';
-import { HasuraUserBase } from '@tesseractcollective/hasura-toolbox';
 import { HttpError } from '@tesseractcollective/serverless-toolbox';
-import JwtHasuraAuth, { VerifyTicket } from './JwtHasuraAuth';
 import AWS, { SES } from 'aws-sdk';
+
+import JwtHasuraAuth, { VerifyTicket } from './JwtAuth';
 import { passwordResetTemplate, emailVerificationTemplate, emailAlreadyVerifiedTemplate } from './email';
 
 // HTML Standard: https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
@@ -38,6 +38,7 @@ export default class AuthRouter {
       response.header('Access-Control-Allow-Origin', this.allowedOrigins);
       next();
     });
+    
     this.router.post('/register', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
@@ -61,13 +62,14 @@ export default class AuthRouter {
         next(error);
       }
     });
+
     this.router.post('/login', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
         const password = this.validate<string>(request.body, 'password', 'string');
 
         // TODO: get role and permissions from user to get the namespace and service roles
-        const user = await this.auth.getUser(email, password);
+        const user = await this.auth.getUserWithEmailPassword(email, password);
         const nameSpace = '';
         const allowedRoles = [''];
         const role = '';
@@ -78,13 +80,14 @@ export default class AuthRouter {
         next(error);
       }
     });
+
     this.router.post('/email-verify/request', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
-        let user = await this.auth.getUserPlain(email);
-        if (user) {
+        let userPassword = await this.auth.getUserPassword(email);
+        if (userPassword) {
           let params: SES.Types.SendEmailRequest;
-          if (user.emailVerify?.verified !== true) {
+          if (userPassword.emailVerify?.verified !== true) {
             const ticket = await this.auth.addEmailVerifyTicket(email);
             // build link for email
             const env = process.env.STAGE;
@@ -108,6 +111,7 @@ export default class AuthRouter {
         next(error)
       }
     });
+
     this.router.get('/email-verify/verify', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
@@ -122,8 +126,10 @@ export default class AuthRouter {
         next(error)
       }
     });
+
     this.router.post('/token/refresh', async (request: Request, response: Response, next: NextFunction) => {
     });
+
     this.router.delete('/user/', async (request: Request, response: Response, next: NextFunction) => {
       // TODO modify to not call hasura
       try {
@@ -138,6 +144,7 @@ export default class AuthRouter {
         next(error);
       }
     });
+
     this.router.post('/change-password/request', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
@@ -163,6 +170,7 @@ export default class AuthRouter {
         next(error)
       }
     });
+
     this.router.get('/change-password', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex));
@@ -172,18 +180,19 @@ export default class AuthRouter {
         next(error)
       }
     });
+
     this.router.post('/change-password/verify', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
         const ticket = this.validate<string>(request.body, 'ticket', 'string');
         const password = this.validate<string>(request.body, 'password', 'string');
-        let user = await this.auth.getUserPlain(email);
-        if (user && user.passwordResetTicket) {
-          if (user.passwordResetTicket.expires < Date.now()) {
-            console.log(`The expiration date of ${user.passwordResetTicket.expires} is older than today: ${Date.now()}`);
+        let userPassword = await this.auth.getUserPassword(email);
+        if (userPassword && userPassword.passwordResetTicket) {
+          if (userPassword.passwordResetTicket.expires < Date.now()) {
+            console.log(`The expiration date of ${userPassword.passwordResetTicket.expires} is older than today: ${Date.now()}`);
             this.auth.removePasswordResetTicket(email)
             throw new HttpError(400, 'Your password reset ticket has expired. Please start the password reset process again.');
-          } else if (user.passwordResetTicket.ticket === ticket) {
+          } else if (userPassword.passwordResetTicket.ticket === ticket) {
             try {
               await this.auth.updatePassword(email, password);
               response.status(204).send();
@@ -198,9 +207,10 @@ export default class AuthRouter {
         next(error)
       }
     });
-    // with Twilio later
+
     this.router.post('/mobile-verify/request', async (request: Request, response: Response, next: NextFunction) => {
     });
+
     this.router.post('/mobile-verify/verify', async (request: Request, response: Response, next: NextFunction) => {
     });
     
