@@ -14,8 +14,10 @@ provider:
     - user-service-key-${self:service}-${self:provider.stage}
   iamRoleStatements:
     - ${file(./serverlessConfig.js):config.passwordTableIamRoleStatements}
+    - ${file(./serverlessConfig.js):config.cacheTableIamRoleStatements}
   environment:
     PASSWORD_TABLE: ${file(./serverlessConfig.js):config.passwordTable}
+    CACHE_TABLE: ${file(./serverlessConfig.js):config.cacheTable}
     REGION: ${self:provider.region}
     DEBUG: true
     STAGE: ${self:provider.stage}
@@ -60,4 +62,5 @@ package:
 resources:
   Resources:
     PasswordTable: ${file(./serverlessConfig.js):config.passwordTableResource}
+    CacheTable: ${file(./serverlessConfig.js):config.cacheTableResource}
     

@@ -1,10 +1,10 @@
-import { nanoid } from 'nanoid';
+import { nanoid, customAlphabet } from 'nanoid';
 import jwt from 'jsonwebtoken';
 
 import { ObjectStore, HttpError, PasswordAuth, PasswordHash } from '@tesseractcollective/serverless-toolbox';
 import UserApi, { User } from './UserApi';
 
-
+const nanoIdTextCode = customAlphabet('0123456789', 6);
 const ticketTimeToLive = 1000 * 60 * 60 * 24; // 24 hours
 
 export interface VerifyTicket {
@@ -17,19 +17,11 @@ export interface UserPassword {
   id: string;
   userId: string;
   hash: PasswordHash,
+  mobile?: string,
   emailVerify?: VerifyTicket,
   mobileVerify?: VerifyTicket, 
   passwordResetTicket?: VerifyTicket,
 }
-
-// TODO: import from ./tools/ObjectStore
-// interface Action {
-//   type: string;
-//   payload?: { [key: string]: any };
-//   meta?: { [key: string]: any };
-//   error?: boolean;
-// }
-// type Reducer<T> = (state: T, action: Action) => T;
 
 const emailOrPasswordError = new HttpError(400, 'incorrect email or password');
 
@@ -113,27 +105,36 @@ export default class JwtHasuraAuth {
     return Promise.all([userResp, passwordResp]);
   }
 
-  async updatePassword(email: string, password: string): Promise<UserPassword> {
+  ticketNotVerified(ticket: string, verifyTicket: VerifyTicket) {
+    return verifyTicket?.ticket === ticket && verifyTicket?.verified !== true;
+  }
+
+  ticketNotExpired(verifyTicket: VerifyTicket) {
+    return verifyTicket?.expires || 0 > Date.now();
+  }
+
+  async updatePassword(email: string, password: string, ticket: string): Promise<UserPassword> {
     const userPassword = await this.passwordStore.get(email);
     if (!userPassword) {
       return Promise.reject(new HttpError(404, 'email does not exist'));
     }
-    if (password.length < this.minPasswordLength) {
-      return Promise.reject(new HttpError(400, `password must be ${this.minPasswordLength} characters or longer`));
-    }
-    delete userPassword.passwordResetTicket;
-    userPassword.hash = await this.passwordAuth.createHash(password);
-    await this.passwordStore.put(email, userPassword);
-    return userPassword;
-  }
 
-  async removePasswordResetTicket(email: string): Promise<UserPassword> {
-    const userPassword = await this.passwordStore.get(email);
-    if (!userPassword) {
-      return Promise.reject('no user found to delete password reset ticket');
-    }
-    delete userPassword.passwordResetTicket;
-    return this.passwordStore.put(email, userPassword);
+    if (userPassword.passwordResetTicket && this.ticketNotVerified(ticket, userPassword.passwordResetTicket)) {
+      if (this.ticketNotExpired(userPassword.passwordResetTicket)) {
+        if (password.length < this.minPasswordLength) {
+          return Promise.reject(new HttpError(400, `password must be ${this.minPasswordLength} characters or longer`));
+        }
+        delete userPassword.passwordResetTicket;
+        userPassword.hash = await this.passwordAuth.createHash(password);
+        await this.passwordStore.put(email, userPassword);
+        return userPassword;
+      } else {
+        delete userPassword.passwordResetTicket;
+        await this.passwordStore.put(email, userPassword);
+        throw new HttpError(400, 'Your password reset ticket has expired. Please start the password reset process again.');
+      }
+    } 
+    throw new HttpError(400, 'An error occured, please start the password reset process again.');
   }
 
   /**
@@ -163,8 +164,8 @@ export default class JwtHasuraAuth {
   async verifyEmail(email: string, ticket: string): Promise<UserPassword>{
     try {
       let user = await this.passwordStore.get(email);
-      if (user && user.emailVerify && user.emailVerify.ticket === ticket && !user.emailVerify.verified) {
-        if (user.emailVerify.expires > Date.now()) {
+      if (user?.emailVerify && this.ticketNotVerified(ticket, user.emailVerify)) {
+        if (this.ticketNotExpired(user.emailVerify)) {
           user.emailVerify.verified = true;
           return this.passwordStore.put(email, user);
         } else {
@@ -182,34 +183,62 @@ export default class JwtHasuraAuth {
    * @param email User account email.
    */
   async addPasswordResetTicket(email: string): Promise<VerifyTicket> {
-    // let action = {
-    //   type: 'ADD_PASSWORD_RESET_TICKET',
-    //   payload: verifyTicket 
-    // }
-    // const userPasswordTicketReducer = (state: UserPassword, action: Action) => {
-    //   if (action.payload) {
-
-    //   }
-    //   state.passwordResetTicket = {action.payload}; 
-    // }
-
     let user = await this.getUserPlain(email);
-    console.log("User state before reducer");
-    console.log(JSON.stringify(user));
     if (user) {
       user.passwordResetTicket = { 
         ticket: nanoid(),
         expires: Date.now() + ticketTimeToLive,
         verified: false,
       }
-      console.log("User state after reducer");
-      console.log(JSON.stringify(user));
-      // let user = await this.passwordStore.updateState(email, action, reducer)
-      let dbResponse = await this.passwordStore.put(email, user);
+      await this.passwordStore.put(email, user);
       return user.passwordResetTicket;
     } else {
       return Promise.reject('Error creating password reset ticket');
     }
+  }
+
+    /**
+   * Add a new mobile ticket, replacing any old ones, refreshing expiration date.
+   * @param email User account email.
+   * @param mobile User account mobile number.
+   */
+  async addMobile(email: string, mobile: string): Promise<VerifyTicket> {
+    const user = await this.getUserPlain(email);
+    if (user) {
+      const mobileVerify = { 
+        ticket: nanoIdTextCode(),
+        expires: Date.now() + ticketTimeToLive,
+        verified: false,
+      }
+      const newUser = { ...user, mobileVerify, mobile }
+      await this.passwordStore.put(email, newUser);
+      return mobileVerify;
+    } else {
+      return Promise.reject('Error creating password reset ticket');
+    }
+  }
+
+  /**
+   * Verify mobile number with a ticket.
+   * @param email User account email.
+   * @param ticket Mobile verification ticket value.
+   * @param mobile User mobile number.
+   */
+  async verifyMobile(email: string, ticket: string, mobile: string): Promise<UserPassword>{
+    try {
+      let user = await this.passwordStore.get(email);
+      if (user?.mobileVerify && this.ticketNotVerified(ticket, user.mobileVerify) && mobile === user.mobile) {
+        if (this.ticketNotExpired(user.mobileVerify)) {
+          user.mobileVerify.verified = true;
+          return this.passwordStore.put(email, user);
+        } else {
+          Promise.reject('Ticket has expired, please initiate the mobile verification process again.');
+        }
+      }
+    } catch (error) {
+      return Promise.reject(`Error verifying mobile ${mobile}. Please try again.`)
+    }
+    return Promise.reject('Unable to verify mobile number. Either the user account does not exist or the mobile number has already been verified.');
   }
 
   /**

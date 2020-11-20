@@ -1,9 +1,9 @@
 import { Router, NextFunction, Request, Response } from 'express';
-import { HasuraUserBase } from '@tesseractcollective/hasura-toolbox';
 import { HttpError } from '@tesseractcollective/serverless-toolbox';
 import JwtHasuraAuth, { VerifyTicket } from './JwtHasuraAuth';
 import AWS, { SES } from 'aws-sdk';
 import { passwordResetTemplate, emailVerificationTemplate, emailAlreadyVerifiedTemplate } from './email';
+import Sms from './sms';
 
 // HTML Standard: https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
 const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
@@ -12,6 +12,7 @@ export default class AuthRouter {
   readonly auth: JwtHasuraAuth;
   readonly router = Router();
   readonly allowedOrigins: string;
+
 
   constructor(auth: JwtHasuraAuth, allowedOrigins: string = '*') {
     this.auth = auth;
@@ -177,31 +178,44 @@ export default class AuthRouter {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
         const ticket = this.validate<string>(request.body, 'ticket', 'string');
         const password = this.validate<string>(request.body, 'password', 'string');
-        let user = await this.auth.getUserPlain(email);
-        if (user && user.passwordResetTicket) {
-          if (user.passwordResetTicket.expires < Date.now()) {
-            console.log(`The expiration date of ${user.passwordResetTicket.expires} is older than today: ${Date.now()}`);
-            this.auth.removePasswordResetTicket(email)
-            throw new HttpError(400, 'Your password reset ticket has expired. Please start the password reset process again.');
-          } else if (user.passwordResetTicket.ticket === ticket) {
-            try {
-              await this.auth.updatePassword(email, password);
-              response.status(204).send();
-            } catch (error) {
-              throw error;
-            }
-          }
-        } else {
-          throw new HttpError(400, 'An error occured, please start the password reset process again.');
-        }
+        await this.auth.updatePassword(email, password, ticket);
+        response.status(204).send();
       } catch (error) {
         next(error)
       }
     });
-    // with Twilio later
     this.router.post('/mobile-verify/request', async (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
+        const mobile = this.validate<string>(request.body, 'mobile', 'string');
+        const userExists = await this.auth.userExists(email)
+        if (userExists) {
+          const ticket: VerifyTicket = await this.auth.addMobile(email, mobile);
+          const sender = 'Tesseract';
+          const message = `${sender} mobile verification code: ${ticket.ticket}`;
+          await new Sms(sender).sendSms(message, mobile);
+        } else {
+          console.log(`User email ${email} does not exist, no password reset email sent.`);
+        }
+        response.send();
+      } catch (error) {
+        next(error)
+      }
     });
     this.router.post('/mobile-verify/verify', async (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
+        const ticket = this.validate<string>(request.query, 'ticket', 'string');
+        const mobile = this.validate<string>(request.query, 'mobile', 'string');
+        return this.auth.verifyEmail(email, ticket)
+        .then(data => {
+          console.log(`Mobile: ${mobile} verified successfully`)
+          response.send();
+        })
+        .catch(err => {throw new HttpError(400, err.message)});
+      } catch (error) {
+        next(error)
+      }
     });
     
   }
