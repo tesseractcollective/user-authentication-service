@@ -9,21 +9,27 @@ import {
 } from '@tesseractcollective/serverless-toolbox';
 
 import EventRouter from './EventRouter';
-import HasuraUserApi, { HasuraUser } from './HasuraUserApi';
-import JwtHasuraAuth, { UserPassword } from './JwtAuth';
-import HasuraAuthRouter from './AuthRouter';
+import JwtAuth, { UserPassword } from './JwtAuth';
+import AuthRouter from './AuthRouter';
+
+// HasuraUserApi is only used if env vars are set
+import HasuraUserApi from './HasuraUserApi';
+
+const hasuraUrl = process.env['HASURA_URL'];
+const hasuraAdminSecret = process.env['HASURA_ADMIN_SECRET'];
+let api: HasuraUserApi | undefined;
+if (hasuraUrl && hasuraAdminSecret) {
+  api = new HasuraUserApi(hasuraUrl, hasuraAdminSecret);
+}
 
 const region = getEnvVar('REGION');
 const jwtSecret = getEnvVar('JWT_SECRET');
-const hasuraUrl = getEnvVar('HASURA_URL');
-const hasuraAdminSecret = getEnvVar('HASURA_ADMIN_SECRET');
 const passwordTable = getEnvVar('PASSWORD_TABLE');
 
 const passwordStore = new DynamoDbObjectStore<UserPassword>(passwordTable, region);
-const api = new HasuraUserApi(hasuraUrl, hasuraAdminSecret);
-const auth = new JwtHasuraAuth(passwordStore, jwtSecret);
+const auth = new JwtAuth(passwordStore, jwtSecret, 10, api);
 
-const authRouter = new HasuraAuthRouter(auth);
+const authRouter = new AuthRouter(auth);
 const apiGatewayExpressAuth = new ApiGatewayExpress({ '(/dev)?/auth/': authRouter.router });
 
 const eventRouter = new EventRouter(passwordStore);

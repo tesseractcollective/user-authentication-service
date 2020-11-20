@@ -1,5 +1,18 @@
 const { DynamoDbWrapper } = require('aws-serverless-toolbox');
 
+function sesIamStatements() {
+  return {
+    "Effect":"Allow",
+    "Resource":`arn:aws:ses:us-east-1:*:identity/*`,
+    "Action":[
+      "ses:SendEmail",
+      "ses:SendTemplatedEmail",
+      "ses:SendRawEmail",
+      "ses:SendBulkTemplatedEmail"
+    ]
+  }
+}
+
 module.exports.config = function (serverless) {
   const configFile = serverless.pluginManager.serverlessConfigFile;
   const cliOptions = serverless.pluginManager.cliOptions;
@@ -11,7 +24,8 @@ module.exports.config = function (serverless) {
     passwordTable: `${configFile.service}-${stage}-password`
   };
   const iamRoleStatements = {
-    passwordTableIamRoleStatements: DynamoDbWrapper.iamRoleStatementForTable(generalConfig.passwordTable)
+    passwordTableIamRoleStatements: DynamoDbWrapper.iamRoleStatementForTable(generalConfig.passwordTable),
+    sesIamRoleStatements: sesIamStatements(),
   };
   const resources = {
     passwordTableResource: DynamoDbWrapper.cloudFormationForTableWithId(generalConfig.passwordTable)

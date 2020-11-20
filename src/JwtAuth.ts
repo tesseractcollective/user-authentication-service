@@ -7,9 +7,10 @@ import HasuraUserApi from './HasuraUserApi';
 export interface User {
   id: string;
   email: string;
+  role: string;
 }
 
-const ticketTimeToLive = 1000 * 60 * 60 * 24; // 24 hours
+const defaultTimeToLive = 1000 * 60 * 60 * 24; // 24 hours
 
 export interface VerifyTicket {
   ticket: string,
@@ -20,20 +21,12 @@ export interface VerifyTicket {
 export interface UserPassword {
   id: string;
   userId: string;
-  hash: PasswordHash,
-  emailVerify?: VerifyTicket,
-  mobileVerify?: VerifyTicket, 
-  passwordResetTicket?: VerifyTicket,
+  hash: PasswordHash;
+  role: string;
+  emailVerify?: VerifyTicket;
+  mobileVerify?: VerifyTicket; 
+  passwordResetTicket?: VerifyTicket;
 }
-
-// TODO: import from ./tools/ObjectStore
-// interface Action {
-//   type: string;
-//   payload?: { [key: string]: any };
-//   meta?: { [key: string]: any };
-//   error?: boolean;
-// }
-// type Reducer<T> = (state: T, action: Action) => T;
 
 const emailOrPasswordError = new HttpError(400, 'incorrect email or password');
 
@@ -65,7 +58,7 @@ export default class JwtHasuraAuth {
    * @param email User account email.
    * @param password Account password.
    */
-  async createUser(email: string, password: string): Promise<UserPassword> {
+  async createUser(email: string, password: string, timeToLive: number = defaultTimeToLive): Promise<UserPassword> {
     const existingUserPassword = await this.passwordStore.get(email);
     if (existingUserPassword) {
       if ((existingUserPassword.emailVerify === undefined || existingUserPassword.emailVerify.verified === true)) {
@@ -79,6 +72,7 @@ export default class JwtHasuraAuth {
     }
 
     let userId = nanoid();
+    let role = 'user';
     if (this.hasuraUserApi) {
       const hasuraUser = await this.hasuraUserApi.createUserWithEmail(email);
       userId = hasuraUser.id;
@@ -89,9 +83,10 @@ export default class JwtHasuraAuth {
       id: email,
       userId: userId,
       hash,
+      role,
       emailVerify: { 
         ticket: nanoid(),
-        expires: Date.now() + ticketTimeToLive,
+        expires: Date.now() + timeToLive,
         verified: false,
       }
     }
@@ -109,11 +104,10 @@ export default class JwtHasuraAuth {
     if (!existingUserPassword) {
       return Promise.reject(new HttpError(404, 'User not found'));
     }
-    let userResponse: any;
 
     if (this.hasuraUserApi) {
       try {
-        const userResponse = await this.hasuraUserApi.deleteUserById(existingUserPassword.userId);
+        await this.hasuraUserApi.deleteUserById(existingUserPassword.userId);
       } catch(error) {
         console.log("error deleting user from Hasura: " + JSON.stringify(error))
         if (error.statusCode !== 404) { // Swallow 404 to allow deleting password if user does not exist in user store.
@@ -152,12 +146,12 @@ export default class JwtHasuraAuth {
    * Add a new email verification ticket, replacing any old ones, refreshing the expiration date.
    * @param email User account email.
    */
-  async addEmailVerifyTicket(email: string): Promise<VerifyTicket> {
+  async addEmailVerifyTicket(email: string, timeToLive: number = defaultTimeToLive): Promise<VerifyTicket> {
     let user = await this.passwordStore.get(email);
     if (user) {
       user.emailVerify = { 
         ticket: nanoid(),
-        expires: Date.now() + ticketTimeToLive,
+        expires: Date.now() + timeToLive,
         verified: false,
       }
       await this.passwordStore.put(email, user);
@@ -193,14 +187,14 @@ export default class JwtHasuraAuth {
    * Add a new password reset ticket, replacing any old ones, refreshing expiration date.
    * @param email User account email.
    */
-  async addPasswordResetTicket(email: string): Promise<VerifyTicket> {
+  async addPasswordResetTicket(email: string, timeToLive: number = defaultTimeToLive): Promise<VerifyTicket> {
     let user = await this.passwordStore.get(email);
     console.log("User state before reducer");
     console.log(JSON.stringify(user));
     if (user) {
       user.passwordResetTicket = { 
         ticket: nanoid(),
-        expires: Date.now() + ticketTimeToLive,
+        expires: Date.now() + timeToLive,
         verified: false,
       }
       await this.passwordStore.put(email, user);
@@ -232,6 +226,7 @@ export default class JwtHasuraAuth {
     let user = {
       id: userPassword.userId,
       email: userPassword.id,
+      role: userPassword.role,
     };
     if (this.hasuraUserApi) {
       user = await this.hasuraUserApi.getUserById(userPassword.userId);
@@ -264,6 +259,44 @@ export default class JwtHasuraAuth {
       return Promise.reject(emailOrPasswordError);
     }
     return user;
+  }
+
+  /**
+   * Gets user if jwt is correct.
+   * @param token JWT.
+   */
+  async getUserWithJwt(token: string): Promise<User> {
+    const decoded = this.verifyJwt(token);
+    const { user } = await this.getUserAndUserPassword(decoded.email);
+    return user;
+  }
+
+  verifyJwt(token: string): any {
+    const decoded = jwt.verify(token, this.jwtSecret);
+    return decoded;
+  }
+
+  createJwt(user: User) {
+    const jwtData = {
+      sub: user.id,
+      email: user.email,
+      iat: Date.now() / 1000,
+    }
+    const options = this.timeToLive > 0 ? { expiresIn: this.timeToLive } : undefined;
+    return jwt.sign(jwtData, this.jwtSecret, options);
+  }
+
+  /**
+   * Gets user if password is correct.
+   * @param email User account email.
+   * @param password Account password.
+   */
+  async createJwtWithEmailPassword(email: string, password: string): Promise<string> {
+    const { user, userPassword } = await this.getUserAndUserPassword(email);
+    if (this.hasuraUserApi) {
+
+    }
+    return this.createJwt(user);
   }
 
   /**
