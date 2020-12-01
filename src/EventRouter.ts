@@ -1,5 +1,5 @@
 import { Router, NextFunction, Request, Response } from 'express';
-import { UserPassword } from './JwtHasuraAuth';
+import { UserPassword } from './JwtAuth';
 import {
   HttpError,
   ObjectStore,
@@ -10,7 +10,7 @@ import {
   HasuraTriggerPayload,
   validateHasuraTriggerPayload,
   hasuraPayloadMatches,
-} from '@tesseractcollective/hasura-toolbox'
+} from '@tesseractcollective/hasura-toolbox';
 
 
 export default class BaseRouter {
@@ -43,7 +43,7 @@ export default class BaseRouter {
   }
 
   setupRoutes() {
-    this.router.post('/user', async (request: Request, response: Response, next: NextFunction) => {
+    this.router.post('/', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const payload: HasuraTriggerPayload = request.body;
         await this.handleEvent(payload);

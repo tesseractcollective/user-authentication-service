@@ -1,7 +1,8 @@
 import { Router, NextFunction, Request, Response } from 'express';
 import { HttpError } from '@tesseractcollective/serverless-toolbox';
-import JwtHasuraAuth, { VerifyTicket } from './JwtHasuraAuth';
 import AWS, { SES } from 'aws-sdk';
+
+import JwtHasuraAuth, { VerifyTicket } from './JwtAuth';
 import { passwordResetTemplate, emailVerificationTemplate, emailAlreadyVerifiedTemplate } from './email';
 import Sms from './sms';
 
@@ -39,6 +40,7 @@ export default class AuthRouter {
       response.header('Access-Control-Allow-Origin', this.allowedOrigins);
       next();
     });
+    
     this.router.post('/register', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
@@ -62,13 +64,14 @@ export default class AuthRouter {
         next(error);
       }
     });
+
     this.router.post('/login', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
         const password = this.validate<string>(request.body, 'password', 'string');
 
         // TODO: get role and permissions from user to get the namespace and service roles
-        const user = await this.auth.getUser(email, password);
+        const user = await this.auth.getUserWithEmailPassword(email, password);
         const nameSpace = '';
         const allowedRoles = [''];
         const role = '';
@@ -79,13 +82,14 @@ export default class AuthRouter {
         next(error);
       }
     });
+
     this.router.post('/email-verify/request', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
-        let user = await this.auth.getUserPlain(email);
-        if (user) {
+        let userPassword = await this.auth.getUserPassword(email);
+        if (userPassword) {
           let params: SES.Types.SendEmailRequest;
-          if (user.emailVerify?.verified !== true) {
+          if (userPassword.emailVerify?.verified !== true) {
             const ticket = await this.auth.addEmailVerifyTicket(email);
             // build link for email
             const env = process.env.STAGE;
@@ -109,6 +113,7 @@ export default class AuthRouter {
         next(error)
       }
     });
+
     this.router.get('/email-verify/verify', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
@@ -123,22 +128,10 @@ export default class AuthRouter {
         next(error)
       }
     });
+
     this.router.post('/token/refresh', async (request: Request, response: Response, next: NextFunction) => {
     });
-    this.router.delete('/user/', async (request: Request, response: Response, next: NextFunction) => {
-      // TODO modify to not call hasura
-      try {
-        const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
-        await this.auth.deleteUser(email)
-        .catch(err => {
-          console.error(`Error deleting a user: ${err}`)
-          throw new HttpError(500, 'Error deleting user, please try again later.')
-        });
-        response.send();
-      } catch (error) {
-        next(error);
-      }
-    });
+
     this.router.post('/change-password/request', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
@@ -164,15 +157,18 @@ export default class AuthRouter {
         next(error)
       }
     });
+
     this.router.get('/change-password', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex));
-        const ticket = this.validate<string>(request.query, 'ticket', 'string');
+        // used in html JavaScript
+        this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex));
+        this.validate<string>(request.query, 'ticket', 'string');
         response.sendFile(__dirname + '/views/passwordReset.html')
       } catch (error) {
         next(error)
       }
     });
+
     this.router.post('/change-password/verify', async (request: Request, response: Response, next: NextFunction) => {
       try {
         const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();

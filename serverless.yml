@@ -13,8 +13,9 @@ provider:
   apiKeys:
     - user-service-key-${self:service}-${self:provider.stage}
   iamRoleStatements:
-    - ${file(./serverlessConfig.js):config.passwordTableIamRoleStatements}
+    - ${file(./serverlessConfig.js):config.passwordTableIamRoleStatements} 
     - ${file(./serverlessConfig.js):config.cacheTableIamRoleStatements}
+    - ${file(./serverlessConfig.js):config.sesIamRoleStatements}
   environment:
     PASSWORD_TABLE: ${file(./serverlessConfig.js):config.passwordTable}
     CACHE_TABLE: ${file(./serverlessConfig.js):config.cacheTable}
