@@ -1,59 +1,57 @@
 import { nanoid, customAlphabet } from 'nanoid';
+import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 
-import { ObjectStore, HttpError, PasswordAuth, PasswordHash } from '@tesseractcollective/serverless-toolbox';
-import HasuraUserApi from './HasuraUserApi';
+import { ObjectStore, HttpError, PasswordAuth, PasswordHash, log } from '@tesseractcollective/serverless-toolbox';
 
 export interface User {
   id: string;
   email: string;
   role: string;
-}
-
-const nanoIdTextCode = customAlphabet('0123456789', 6);
-
-const defaultTimeToLive = 1000 * 60 * 60 * 24; // 24 hours
-
-export interface VerifyTicket {
-  ticket: string,
-  expires: number,
-  verified: boolean,
-}
-
-export interface UserPassword {
-  id: string;
-  userId: string;
-  hash: PasswordHash;
-  role: string;
   mobile?: string;
-  emailVerify?: VerifyTicket;
-  mobileVerify?: VerifyTicket; 
-  passwordResetTicket?: VerifyTicket;
+  emailVerified: boolean;
+  mobileVerified: boolean;
+}
+
+export interface TicketBox {
+  ticket: string;
+}
+
+export interface UserIdBox {
+  userId: string;
 }
 
 const emailOrPasswordError = new HttpError(400, 'incorrect email or password');
+const nanoidTextCodeCreator = customAlphabet('0123456789', 6);
 
-export default class JwtHasuraAuth {
+export default class JwtAuth {
   private readonly passwordAuth = new PasswordAuth();
-  private readonly passwordStore: ObjectStore<UserPassword>;
+  private readonly passwordStore: ObjectStore<PasswordHash>;
+  private readonly expiringTicketStore: ObjectStore<TicketBox>;
+  private readonly emailMapStore: ObjectStore<UserIdBox>;
+  private readonly userStore: ObjectStore<User>;
   private readonly minPasswordLength: number;
-  private readonly hasuraUserApi?: HasuraUserApi;
+  
   readonly timeToLive: number;
   readonly revokable: boolean;
   readonly jwtSecret: string;
 
   constructor(
-    store: ObjectStore<UserPassword>,
+    passwordStore: ObjectStore<PasswordHash>,
+    expiringTicketStore: ObjectStore<TicketBox>,
+    emailMapStore: ObjectStore<UserIdBox>,
+    userStore: ObjectStore<User>,
     jwtSecret: string,
     minPasswordLength: number = 10,
-    hasuraUserApi?: HasuraUserApi,
   ) {
-    this.passwordStore = store;
+    this.passwordStore = passwordStore;
+    this.expiringTicketStore = expiringTicketStore;
+    this.emailMapStore = emailMapStore;
+    this.userStore = userStore;
     this.timeToLive = -1;
     this.revokable = false;
     this.jwtSecret = jwtSecret;
     this.minPasswordLength = minPasswordLength;
-    this.hasuraUserApi = hasuraUserApi;
   }
 
   /**
@@ -61,41 +59,71 @@ export default class JwtHasuraAuth {
    * @param email User account email.
    * @param password Account password.
    */
-  async createUser(email: string, password: string, timeToLive: number = defaultTimeToLive): Promise<UserPassword> {
-    const existingUserPassword = await this.passwordStore.get(email);
-    if (existingUserPassword) {
-      if ((existingUserPassword.emailVerify === undefined || existingUserPassword.emailVerify.verified === true)) {
-        return Promise.reject(new HttpError(409, 'email already exists'));
-      } else if (existingUserPassword.emailVerify.verified === false) {
-        await this.deleteUser(email).catch(() => {}); // delete existing unverified user before creating another.
-      }
+  async createUser(email: string, password: string, role: string): Promise<User> {
+    let userId = await this.getUserIdForEmail(email);
+    if (userId) {
+      return Promise.reject(new HttpError(409, 'user already exists'));
     }
     if (password.length < this.minPasswordLength) {
       return Promise.reject(new HttpError(400, `password must be ${this.minPasswordLength} characters or longer`));
     }
 
-    let userId = nanoid();
-    let role = 'user';
-    if (this.hasuraUserApi) {
-      const hasuraUser = await this.hasuraUserApi.createUserWithEmail(email);
-      userId = hasuraUser.id;
-    }
-    
-    const hash = await this.passwordAuth.createHash(password);
-    const data: UserPassword = {
-      id: email,
-      userId: userId,
-      hash,
+    userId = uuidv4();
+
+    const user: User = {
+      id: userId,
+      email,
       role,
-      emailVerify: { 
-        ticket: nanoid(),
-        expires: Date.now() + timeToLive,
-        verified: false,
+      emailVerified: false,
+      mobileVerified: false,
+    };
+    const hash = await this.passwordAuth.createHash(password);
+
+    return Promise.all([
+      this.userStore.put(userId, user),
+      this.emailMapStore.put(email, { userId: userId }),
+      this.passwordStore.put(userId, hash)
+    ])
+    .then(() => user)
+    .catch(err => Promise.reject(new HttpError(500, 'error saving user to database')));    
+  }
+
+  /**
+   * Gets user.
+   * @param email User account email.
+   */
+  async getUser(id: string): Promise<User | undefined> {
+    return this.userStore.get(id);
+  }
+
+  /**
+   * Gets user.
+   * @param email User account email.
+   */
+  async getUserWithEmail(email: string): Promise<User | undefined> {
+    const userId = await this.getUserIdForEmail(email);
+    if (userId) {
+      return this.getUser(userId);
+    }
+  }
+
+  /**
+   * Gets user if password is correct.
+   * @param email User account email.
+   * @param password Account password.
+   */
+  async getUserWithEmailPassword(email: string, password: string): Promise<User | undefined> {
+    const user = await this.getUserWithEmail(email);
+    if (user) {
+      const passwordHash = await this.passwordStore.get(user.id);
+      if (passwordHash) {
+        const isValid = await this.passwordAuth.verifyHash(passwordHash, password);
+        if (isValid) {
+          return user;
+        }
       }
     }
-    return this.passwordStore.put(email, data)
-    .then(() => data)
-    .catch(err => Promise.reject('error saving user to database'));
+    return Promise.reject(emailOrPasswordError);
   }
 
   /**
@@ -103,74 +131,59 @@ export default class JwtHasuraAuth {
    * @param email User account email.
    */
   async deleteUser(email: string): Promise<any> {
-    const existingUserPassword = await this.passwordStore.get(email);
-    if (!existingUserPassword) {
+    const userId = await this.getUserIdForEmail(email);
+    if (!userId) {
       return Promise.reject(new HttpError(404, 'User not found'));
     }
-
-    if (this.hasuraUserApi) {
-      try {
-        await this.hasuraUserApi.deleteUserById(existingUserPassword.userId);
-      } catch(error) {
-        console.log("error deleting user from Hasura: " + JSON.stringify(error))
-        if (error.statusCode !== 404) { // Swallow 404 to allow deleting password if user does not exist in user store.
-          throw new HttpError(500, 'error deleting user, please try again later');
-        }
-      }
+    const promises = [
+      this.userStore.delete(userId),
+      this.passwordStore.delete(userId),
+    ];
+    const user = await this.userStore.get(userId);
+    if (user) {
+      promises.push(this.emailMapStore.delete(user.email))
     }
-    
-    return await this.passwordStore.delete(email);
+
+    return Promise.all(promises);
   }
 
-  ticketNotVerified(ticket: string, verifyTicket: VerifyTicket) {
-    return verifyTicket?.ticket === ticket && verifyTicket?.verified !== true;
-  }
-
-  ticketNotExpired(verifyTicket: VerifyTicket) {
-    return verifyTicket?.expires || 0 > Date.now();
-  }
-
-  async updatePassword(email: string, password: string, ticket: string): Promise<UserPassword> {
-    const userPassword = await this.passwordStore.get(email);
-    if (!userPassword) {
+  async updatePassword(email: string, password: string, ticket: string): Promise<void> {
+    const userId = await this.getUserIdForEmail(email);
+    if (!userId) {
       return Promise.reject(new HttpError(404, 'email does not exist'));
     }
-
-    if (userPassword.passwordResetTicket && this.ticketNotVerified(ticket, userPassword.passwordResetTicket)) {
-      if (this.ticketNotExpired(userPassword.passwordResetTicket)) {
-        if (password.length < this.minPasswordLength) {
-          return Promise.reject(new HttpError(400, `password must be ${this.minPasswordLength} characters or longer`));
-        }
-        delete userPassword.passwordResetTicket;
-        userPassword.hash = await this.passwordAuth.createHash(password);
-        await this.passwordStore.put(email, userPassword);
-        return userPassword;
-      } else {
-        delete userPassword.passwordResetTicket;
-        await this.passwordStore.put(email, userPassword);
-        throw new HttpError(400, 'Your password reset ticket has expired. Please start the password reset process again.');
+    const ticketId = `${userId}/passwordReset`;
+    const ticketVerified = await this.verifyTicket(ticketId, ticket);
+    if (ticketVerified) {
+      if (password.length < this.minPasswordLength) {
+        return Promise.reject(new HttpError(400, `password must be ${this.minPasswordLength} characters or longer`));
       }
-    } 
-    throw new HttpError(400, 'An error occured, please start the password reset process again.');
+      await this.expiringTicketStore.delete(ticketId);
+      const hash = await this.passwordAuth.createHash(password);
+      await this.passwordStore.put(userId, hash);
+      return;
+    }
+    return Promise.reject(new HttpError(400, 'Your password reset ticket has expired. Please start the password reset process again.'));
   }
 
   /**
    * Add a new email verification ticket, replacing any old ones, refreshing the expiration date.
    * @param email User account email.
    */
-  async addEmailVerifyTicket(email: string, timeToLive: number = defaultTimeToLive): Promise<VerifyTicket> {
-    let user = await this.passwordStore.get(email);
-    if (user) {
-      user.emailVerify = { 
-        ticket: nanoid(),
-        expires: Date.now() + timeToLive,
-        verified: false,
-      }
-      await this.passwordStore.put(email, user);
-      return user.emailVerify;
-    } else {
-      return Promise.reject('Error creating email verification ticket');
+  async addEmailVerifyTicket(email: string): Promise<string> {
+    try {
+      const userId = await this.getUserIdForEmail(email);
+      if (userId) {
+        const ticketId = `${userId}/${email}`;
+        const ticket = nanoid();
+        await this.expiringTicketStore.put(ticketId, { ticket });
+        return ticket;
+      } 
+    } catch(error) {
+      log.error(error);
     }
+
+    return Promise.reject(new HttpError(400, 'Error creating email verification ticket'));
   }
 
   /**
@@ -178,42 +191,46 @@ export default class JwtHasuraAuth {
    * @param email User account email.
    * @param ticket Email verification ticket value.
    */
-  async verifyEmail(email: string, ticket: string): Promise<UserPassword>{
+  async verifyEmail(email: string, ticket: string): Promise<User> {
     try {
-      let user = await this.passwordStore.get(email);
-      if (user?.emailVerify && this.ticketNotVerified(ticket, user.emailVerify)) {
-        if (this.ticketNotExpired(user.emailVerify)) {
-          user.emailVerify.verified = true;
-          return this.passwordStore.put(email, user);
+      const userId = await this.getUserIdForEmail(email);
+      if (userId) {
+        const ticketId = `${userId}/${email}`;
+        const verified = await this.verifyTicket(ticketId, ticket);
+        if (verified) {
+          const user = await this.userStore.get(userId);
+          if (user) {
+            user.emailVerified = true;
+            await this.userStore.put(userId, user);
+            return user;
+          }
         } else {
-          Promise.reject('Ticket has expired, please initiate the email verification process again.');
+          return Promise.reject(new HttpError(400, 'Ticket has expired, please initiate the email verification process again.'));
         }
       }
     } catch (error) {
-      return Promise.reject(`Error verifying email ${email}. Please try again.`)
+      return Promise.reject(new HttpError(400, `Error verifying email ${email}. Please try again.`))
     }
-    return Promise.reject('Unable to verify email. Either the user account does not exist or the email has already been verified.');
+    return Promise.reject(new HttpError(400, 'Unable to verify email. Either the user account does not exist or the email has already been verified.'));
   }
 
   /**
    * Add a new password reset ticket, replacing any old ones, refreshing expiration date.
    * @param email User account email.
    */
-  async addPasswordResetTicket(email: string, timeToLive: number = defaultTimeToLive): Promise<VerifyTicket> {
-    let user = await this.passwordStore.get(email);
-    console.log("User state before reducer");
-    console.log(JSON.stringify(user));
-    if (user) {
-      user.passwordResetTicket = { 
-        ticket: nanoid(),
-        expires: Date.now() + timeToLive,
-        verified: false,
+  async addPasswordResetTicket(email: string): Promise<string> {
+    try {
+      const userId = await this.getUserIdForEmail(email);
+      if (userId) {
+        const ticketId = `${userId}/passwordReset`;
+        const ticket = nanoid();
+        await this.expiringTicketStore.put(ticketId, { ticket });
+        return ticket;
       }
-      await this.passwordStore.put(email, user);
-      return user.passwordResetTicket;
-    } else {
-      return Promise.reject('Error creating password reset ticket');
+    } catch(error) {
+      log.error(error);
     }
+    return Promise.reject(new HttpError(400, 'Error creating password reset ticket'));
   }
 
   /**
@@ -221,20 +238,31 @@ export default class JwtHasuraAuth {
    * @param email User account email.
    * @param mobile User account mobile number.
    */
-  async addMobile(email: string, mobile: string, timeToLive: number = defaultTimeToLive): Promise<VerifyTicket> {
-    const user = await this.passwordStore.get(email);
-    if (user) {
-      const mobileVerify = { 
-        ticket: nanoIdTextCode(),
-        expires: Date.now() + timeToLive,
-        verified: false,
+  async addMobile(email: string, mobile: string): Promise<string | undefined> {
+    try {
+      const userId = await this.getUserIdForEmail(email);
+      if (userId) {
+        const user = await this.userStore.get(userId);
+        if (user) {
+          if (user.mobile === mobile && user.mobileVerified) {
+            return;
+          }
+          const ticketId = `${userId}/${mobile}`;
+          const ticket = nanoidTextCodeCreator();
+          await this.expiringTicketStore.put(ticketId, { ticket });
+          const newUser = {
+            ...user,
+            mobile,
+            mobileVerified: false,
+          }
+          await this.userStore.put(userId, newUser);
+          return ticket;
+        }
       }
-      const newUser = { ...user, mobileVerify, mobile }
-      await this.passwordStore.put(email, newUser);
-      return mobileVerify;
-    } else {
-      return Promise.reject('Error creating password reset ticket');
+    } catch(error) {
+      log.error(error);
     }
+    return Promise.reject(new HttpError(400, 'Error creating password reset ticket'));
   }
 
   /**
@@ -243,91 +271,44 @@ export default class JwtHasuraAuth {
    * @param ticket Mobile verification ticket value.
    * @param mobile User mobile number.
    */
-  async verifyMobile(email: string, ticket: string, mobile: string): Promise<UserPassword>{
+  async verifyMobile(email: string, ticket: string, mobile: string): Promise<User> {
     try {
-      let user = await this.passwordStore.get(email);
-      if (user?.mobileVerify && this.ticketNotVerified(ticket, user.mobileVerify) && mobile === user.mobile) {
-        if (this.ticketNotExpired(user.mobileVerify)) {
-          user.mobileVerify.verified = true;
-          return this.passwordStore.put(email, user);
+      const userId = await this.getUserIdForEmail(email);
+      if (userId) {
+        const ticketId = `${userId}/${mobile}`;
+        const verified = await this.verifyTicket(ticketId, ticket);
+        if (verified) {
+          const user = await this.userStore.get(userId);
+          if (user) {
+            user.mobileVerified = true;
+            await this.userStore.put(userId, user);
+            return user;
+          }
         } else {
-          Promise.reject('Ticket has expired, please initiate the mobile verification process again.');
+          return Promise.reject(new HttpError(400, 'Ticket has expired, please initiate the mobile verification process again.'));
         }
       }
     } catch (error) {
-      return Promise.reject(`Error verifying mobile ${mobile}. Please try again.`)
+      log.error(error);
+      return Promise.reject(new HttpError(400, `Error verifying mobile ${mobile}. Please try again.`))
     }
-    return Promise.reject('Unable to verify mobile number. Either the user account does not exist or the mobile number has already been verified.');
+    return Promise.reject(new HttpError(400, 'Unable to verify mobile number. Either the user account does not exist or the mobile number has already been verified.'));
   }
 
-  /**
-   * Test to see if user exists according to the password store.
-   * @param email User account email.
-   */
-  async userExists(email: string): Promise<boolean> {
-    const record = await this.passwordStore.get(email);
-    return !!record;
-  }
-
-  async getUserPassword(email: string): Promise<UserPassword | undefined> {
-    return this.passwordStore.get(email);
-  }
-
-  private async getUserAndUserPassword(email: string): Promise<{ user: User, userPassword: UserPassword }> {
-    const userPassword = await this.getUserPassword(email);
-    if (!userPassword) {
-      return Promise.reject(emailOrPasswordError);
-    }
-
-    let user = {
-      id: userPassword.userId,
-      email: userPassword.id,
-      role: userPassword.role,
-    };
-    if (this.hasuraUserApi) {
-      user = await this.hasuraUserApi.getUserById(userPassword.userId);
-      if (!user) {
-        return Promise.reject(emailOrPasswordError);
-      }
-    }
-
-    return { user, userPassword };
-  }
-
-  /**
-   * Gets user.
-   * @param email User account email.
-   */
-  async getUserWithEmail(email: string): Promise<User> {
-    const { user } = await this.getUserAndUserPassword(email);
-    return user;
-  }
-
-  /**
-   * Gets user if password is correct.
-   * @param email User account email.
-   * @param password Account password.
-   */
-  async getUserWithEmailPassword(email: string, password: string): Promise<User> {
-    const { user, userPassword } = await this.getUserAndUserPassword(email);
-    const isValid = await this.passwordAuth.verifyHash(userPassword.hash, password);
-    if (!isValid) {
-      return Promise.reject(emailOrPasswordError);
-    }
-    return user;
+  private async getUserIdForEmail(email: string): Promise<string | undefined> {
+    return this.emailMapStore.get(email).then(box => box?.userId);
   }
 
   /**
    * Gets user if jwt is correct.
    * @param token JWT.
    */
-  async getUserWithJwt(token: string): Promise<User> {
+  async getUserWithJwt(token: string): Promise<User | undefined> {
     const decoded = this.verifyJwt(token);
-    const { user } = await this.getUserAndUserPassword(decoded.email);
-    return user;
+    return this.getUser(decoded.sub);
   }
 
-  verifyJwt(token: string): any {
+  private verifyJwt(token: string): any {
     const decoded = jwt.verify(token, this.jwtSecret);
     return decoded;
   }
@@ -347,12 +328,24 @@ export default class JwtHasuraAuth {
    * @param email User account email.
    * @param password Account password.
    */
-  async createJwtWithEmailPassword(email: string, password: string): Promise<string> {
-    const { user, userPassword } = await this.getUserAndUserPassword(email);
-    if (this.hasuraUserApi) {
-
+  async createJwtWithEmailPassword(email: string, password: string): Promise<string | undefined> {
+    try {
+      const user = await this.getUserWithEmailPassword(email, password);
+      if (user) {
+        return this.createJwt(user);
+      }
+    } catch(error) {
+      log.error(error);
     }
-    return this.createJwt(user);
+    return Promise.reject(emailOrPasswordError);
+  }
+
+  private async verifyTicket(id: string, ticket: string): Promise<boolean> {
+    const cachedTicket = await this.expiringTicketStore.get(id);
+    if (cachedTicket?.ticket === ticket) {
+      return true;
+    }
+    return false;
   }
 
   /**
