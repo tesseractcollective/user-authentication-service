@@ -14,7 +14,7 @@ TODO:
 ## API Docs
 
 - OpenAPI 3.0 Schema: docs/schema.yaml
-- Swagger Docs: 
+- Swagger Docs: https://tesseractcollective.github.io/user-authentication-service/index.html
 
 ## Instructions to deploy:
 
