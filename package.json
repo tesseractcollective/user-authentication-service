@@ -9,7 +9,8 @@
     "test": "jest",
     "setup": "node createSecrets.js",
     "deploy": "serverless deploy --stage dev",
-    "deploy:prod": "serverless deploy --stage prod"
+    "deploy:prod": "serverless deploy --stage prod",
+    "create:secrets": "node createSecrets"
   },
   "dependencies": {
     "@tesseractcollective/hasura-toolbox": "^0.1.1",
