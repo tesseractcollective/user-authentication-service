@@ -25,7 +25,7 @@ export default class AuthRouter {
 
   setupRoutes() {
     this.router.use(
-      openApiValidator({ apiSpec: `${__dirname}/../../docs/schema.yaml` })
+      openApiValidator({ apiSpec: `${__dirname}/../docs/schema.yaml` })
     );
     this.router.use((request: Request, response: Response, next: NextFunction) => {
       response.header('Access-Control-Allow-Origin', this.allowedOrigins);
@@ -72,7 +72,7 @@ export default class AuthRouter {
         const user = await this.auth.getUserWithEmail(email);
         let emailData: EmailData;
         if (user.emailVerified !== true) {
-          const ticket = await this.auth.addEmailVerifyTicket(user.id, this.ticketTimeToLiveSeconds);
+          const ticket = await this.auth.addEmailVerifyTicket(email, this.ticketTimeToLiveSeconds);
           const emailVerifyLink = this.createVerifyLink(request, ticket, email, 'email');
           emailData = emailVerificationTemplate(emailVerifyLink, this.senderName);
         } else {

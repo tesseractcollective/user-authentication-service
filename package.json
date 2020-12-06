@@ -6,7 +6,6 @@
   "license": "UNLICENSED",
   "scripts": {
     "start": "serverless offline start --useChildProcesses",
-    "build": "rm -rf ./dist/* && tsc",
     "test": "jest",
     "setup": "node createSecrets.js",
     "deploy": "serverless deploy --stage dev",
@@ -14,7 +13,7 @@
   },
   "dependencies": {
     "@tesseractcollective/hasura-toolbox": "^0.1.1",
-    "@tesseractcollective/serverless-toolbox": "^0.4.0",
+    "@tesseractcollective/serverless-toolbox": "^0.4.1",
     "express-openapi-validator": "^4.8.0",
     "node-fetch": "^2.6.1",
     "source-map-support": "^0.5.19"

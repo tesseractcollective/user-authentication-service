@@ -1127,10 +1127,10 @@
   resolved "https://registry.yarnpkg.com/@tesseractcollective/hasura-toolbox/-/hasura-toolbox-0.1.1.tgz#1d6ace74b5ec42e4d89e56e387c7368afcee3b00"
   integrity sha512-vtRE/KlTnIMCEXY4AHDI4D22omWHWVdRUiVJhF1tx+XAT6objmWBzkBxDV5GYute6mJdFMWsxiLf/nGjKhIPSw==
 
-"@tesseractcollective/serverless-toolbox@^0.4.0":
-  version "0.4.0"
-  resolved "https://registry.yarnpkg.com/@tesseractcollective/serverless-toolbox/-/serverless-toolbox-0.4.0.tgz#fe269b2cc4ddc40d31e0435b0b91e4a1102514d6"
-  integrity sha512-gReFibwquPqS6yPksHsDf+67Sg0EBUFj4tiHGR63l1zxNoz4u0ebDfkb1f83sOX9taO+1QgbWOU0QzPyDjRjDw==
+"@tesseractcollective/serverless-toolbox@^0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@tesseractcollective/serverless-toolbox/-/serverless-toolbox-0.4.1.tgz#ede51c4646e795fd2803f8ee7913ac8d41c5e9a0"
+  integrity sha512-x8J+Byxfpcr7DaCqbYVp6dvleyWqQKxAd6am9BwVfVgPWgA2IkhLRuSnuGx1H55c+HARwb5fyzRrVLIHBb1gZw==
   dependencies:
     aws-serverless-express "^3.3.8"
     bcryptjs "^2.4.3"

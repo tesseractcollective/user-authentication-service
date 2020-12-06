@@ -15,6 +15,7 @@ module.exports.config = function (serverless) {
   const iamRoleStatements = {
     passwordTableIamRoleStatements: DynamoDbWrapper.iamRoleStatementForTable(generalConfig.passwordTable),
     cacheTableIamRoleStatements: DynamoDbWrapper.iamRoleStatementForTable(generalConfig.cacheTable),
+    userTableIamRoleStatements: DynamoDbWrapper.iamRoleStatementForTable(generalConfig.userTable),
     sesIamRoleStatements: SesEmail.iamRoleStatements(),
     smsIamRoleStatements: SnsSms.iamRoleStatements(),
   };

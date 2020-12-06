@@ -15,6 +15,7 @@ provider:
   iamRoleStatements:
     - ${file(./serverlessConfig.js):config.passwordTableIamRoleStatements} 
     - ${file(./serverlessConfig.js):config.cacheTableIamRoleStatements}
+    - ${file(./serverlessConfig.js):config.userTableIamRoleStatements}
     - ${file(./serverlessConfig.js):config.sesIamRoleStatements}
     - ${file(./serverlessConfig.js):config.smsIamRoleStatements}
   environment:
@@ -61,6 +62,7 @@ functions:
 package:
   include:
   - src/views/*
+  - docs/schema.yaml
 
 resources:
   Resources:
