@@ -1,35 +1,40 @@
 import fetch from 'node-fetch';
-import { HasuraApi, HasuraUserApi, HasuraUserBase } from '@tesseractcollective/hasura-toolbox';
+import { HasuraApi } from '@tesseractcollective/hasura-toolbox';
+import { User } from '@tesseractcollective/serverless-toolbox';
 
-export interface HasuraUser extends HasuraUserBase {
-  id: string;
-  email: string;
-  role: string;
-}
-
-export default class UserApi implements HasuraUserApi<HasuraUser> {
+export default class UserApi {
   private readonly hasuraApi: HasuraApi;
   constructor(url: string, token: string) {
     this.hasuraApi = new HasuraApi(fetch, url, token, true);
   }
 
-  async createUserWithEmail(email: string): Promise<HasuraUser> {
-    const mutation = `mutation createUser($email: String) {
-      insert_user_one(object: {email: $email}) {
+  // TODO: upsert
+  async createUser(user: User): Promise<User> {
+    const mutation = `mutation createUser($id: String!, $email: String!, $role: String!, $mobile: String, $emailVerified: Boolean!, $mobileVerified: Boolean) {
+      insert_user_one(object: {id: $id, email: $email, role: $role, mobile: $mobile, emailVerified: $emailVerified, mobileVerified: $mobileVerified }) {
         id
-        email
       }
     }`;
-    const payload = { query: mutation, variables: { email } };
+    const payload = { query: mutation, variables: user };
 
     return this.hasuraApi.executeHasuraQuery(payload, 'insert_user_one');
   }
 
-  async deleteUserById(id: string): Promise<HasuraUser> {
+  async updateUser(user: User): Promise<User> {
+    const mutation = `mutation updateUser($id: String!, $email: String!, $role: String!, $mobile: String, $emailVerified: Boolean!, $mobileVerified: Boolean) {
+      update_user(object: {id: $id, email: $email, role: $role, mobile: $mobile, emailVerified: $emailVerified, mobileVerified: $mobileVerified }) {
+        id
+      }
+    }`;
+    const payload = { query: mutation, variables: user };
+
+    return this.hasuraApi.executeHasuraQuery(payload, 'update_user');
+  }
+
+  async deleteUserById(id: string): Promise<User> {
     const mutation = `mutation deleteUser($id: uuid!) {
       delete_user_by_pk(id: $id) {
         id
-        email
       }
     }`
     const payload = { query: mutation, variables: { id } };
@@ -37,11 +42,15 @@ export default class UserApi implements HasuraUserApi<HasuraUser> {
     return this.hasuraApi.executeHasuraQuery(payload, 'delete_user_by_pk');
   }
 
-  async getUserById(id: string): Promise<HasuraUser> {
+  async getUserById(id: string): Promise<User> {
     const query = `query getUser($id: uuid!) {
       user_by_pk(id:$id) {
         id
         email
+        role
+        mobile
+        emailVerified
+        mobileVerified
       }
     }`;
     const payload = { query, variables: { id } };

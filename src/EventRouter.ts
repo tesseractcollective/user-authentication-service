@@ -1,24 +1,20 @@
 import { Router, NextFunction, Request, Response } from 'express';
-import { UserPassword } from './JwtAuth';
 import {
   HttpError,
-  ObjectStore,
-  log
+  log,
+  JwtAuth
 } from '@tesseractcollective/serverless-toolbox';
-
 import {
   HasuraTriggerPayload,
   validateHasuraTriggerPayload,
   hasuraPayloadMatches,
 } from '@tesseractcollective/hasura-toolbox';
 
-
 export default class BaseRouter {
-  private readonly passwordStore: ObjectStore<UserPassword>;
+  private readonly jwtAuth: JwtAuth;
   readonly router = Router();
 
-  constructor(passwordStore: ObjectStore<UserPassword>) {
-    this.passwordStore = passwordStore;
+  constructor(jwtAuth: JwtAuth) {
     this.setupRoutes();
   }
 
@@ -31,12 +27,8 @@ export default class BaseRouter {
 
     if (hasuraPayloadMatches(payload, 'DELETE', 'public', 'users')) {
       const user = payload.event.data.old;
-      const userPassword = await this.passwordStore.get(user.email);
-      if (userPassword?.userId !== user.id) {
-        throw new HttpError(400, `invalid persistedPassword ${JSON.stringify(userPassword)}`);
-      }
       log.info(`deleting user ${user.email} ${user.id}`);
-      await this.passwordStore.delete(user.email);
+      await this.jwtAuth.deleteUser(user.email);
     } else {
       return Promise.reject(new HttpError(400, `unsupported ${payload.event.op} ${payload.table.schema} ${payload.table.name}`));
     }

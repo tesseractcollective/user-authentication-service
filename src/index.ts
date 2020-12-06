@@ -5,11 +5,17 @@ import {
   ApiGatewayExpress,
   getEnvVar,
   log,
+  DynamoDbExpiringObjectStore,
   DynamoDbObjectStore,
+  PasswordHash,
+  JwtAuth,
+  JwtConfiguration,
+  JwtData,
+  User,
+  UserIdBox,
 } from '@tesseractcollective/serverless-toolbox';
 
 import EventRouter from './EventRouter';
-import JwtAuth, { UserPassword } from './JwtAuth';
 import AuthRouter from './AuthRouter';
 
 // HasuraUserApi is only used if env vars are set
@@ -25,14 +31,25 @@ if (hasuraUrl && hasuraAdminSecret) {
 const region = getEnvVar('REGION');
 const jwtSecret = getEnvVar('JWT_SECRET');
 const passwordTable = getEnvVar('PASSWORD_TABLE');
+const userTable = getEnvVar('USER_TABLE');
+const cacheTable = getEnvVar('CACHE_TABLE');
 
-const passwordStore = new DynamoDbObjectStore<UserPassword>(passwordTable, region);
-const auth = new JwtAuth(passwordStore, jwtSecret, 10, api);
+const passwordStore = new DynamoDbObjectStore<PasswordHash>(passwordTable, region);
+const expiringTicketStore = new DynamoDbExpiringObjectStore<any>(cacheTable, region);
+const emailMapStore = new DynamoDbObjectStore<UserIdBox>(cacheTable, region);
+const userStore = new DynamoDbObjectStore<User>(userTable, region);
+const jwtConfig: JwtConfiguration = (user: User): JwtData => {
+  return {
+    sub: user.id,
+    iat: Date.now()/1000,
+  }
+}
+const auth = new JwtAuth(passwordStore, expiringTicketStore, emailMapStore, userStore, jwtSecret, jwtConfig);
 
-const authRouter = new AuthRouter(auth);
+const authRouter = new AuthRouter(auth, 'info@tesseractcollective.com', 'Tesseract');
 const apiGatewayExpressAuth = new ApiGatewayExpress({ '(/dev)?/auth/': authRouter.router });
 
-const eventRouter = new EventRouter(passwordStore);
+const eventRouter = new EventRouter(auth);
 const apiGatewayExpressEvent = new ApiGatewayExpress({ '(/dev)?/event/': eventRouter.router });
 
 export function authHandler(event: APIGatewayProxyEvent, context: Context) {

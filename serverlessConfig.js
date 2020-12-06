@@ -1,17 +1,4 @@
-const { DynamoDbWrapper } = require('aws-serverless-toolbox');
-
-function sesIamStatements() {
-  return {
-    "Effect":"Allow",
-    "Resource":`arn:aws:ses:us-east-1:*:identity/*`,
-    "Action":[
-      "ses:SendEmail",
-      "ses:SendTemplatedEmail",
-      "ses:SendRawEmail",
-      "ses:SendBulkTemplatedEmail"
-    ]
-  }
-}
+const { DynamoDbWrapper, SesEmail, SnsSms } = require('@tesseractcollective/serverless-toolbox');
 
 module.exports.config = function (serverless) {
   const configFile = serverless.pluginManager.serverlessConfigFile;
@@ -22,15 +9,18 @@ module.exports.config = function (serverless) {
   const generalConfig = {
     region: 'us-east-1',
     passwordTable: `${configFile.service}-${stage}-password`,
+    userTable: `${configFile.service}-${stage}-user`,
     cacheTable: `${configFile.service}-${stage}-cache`,
   };
   const iamRoleStatements = {
     passwordTableIamRoleStatements: DynamoDbWrapper.iamRoleStatementForTable(generalConfig.passwordTable),
     cacheTableIamRoleStatements: DynamoDbWrapper.iamRoleStatementForTable(generalConfig.cacheTable),
-    sesIamRoleStatements: sesIamStatements(),
+    sesIamRoleStatements: SesEmail.iamRoleStatements(),
+    smsIamRoleStatements: SnsSms.iamRoleStatements(),
   };
   const resources = {
     passwordTableResource: DynamoDbWrapper.cloudFormationForTableWithId(generalConfig.passwordTable),
+    userTableResource: DynamoDbWrapper.cloudFormationForTableWithId(generalConfig.userTable),
     cacheTableResource: DynamoDbWrapper.cloudFormationForTableWithId(generalConfig.cacheTable, 'expires'),
   };
 

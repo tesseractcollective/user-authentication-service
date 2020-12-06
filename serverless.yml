@@ -16,14 +16,16 @@ provider:
     - ${file(./serverlessConfig.js):config.passwordTableIamRoleStatements} 
     - ${file(./serverlessConfig.js):config.cacheTableIamRoleStatements}
     - ${file(./serverlessConfig.js):config.sesIamRoleStatements}
+    - ${file(./serverlessConfig.js):config.smsIamRoleStatements}
   environment:
     PASSWORD_TABLE: ${file(./serverlessConfig.js):config.passwordTable}
     CACHE_TABLE: ${file(./serverlessConfig.js):config.cacheTable}
+    USER_TABLE: ${file(./serverlessConfig.js):config.userTable}
     REGION: ${self:provider.region}
     DEBUG: true
     STAGE: ${self:provider.stage}
-    HASURA_ADMIN_SECRET: ${self:custom.secrets.hasuraAdminSecret}
-    HASURA_URL: ${self:custom.secrets.hasuraUrl}
+    # HASURA_ADMIN_SECRET: ${self:custom.secrets.hasuraAdminSecret}
+    # HASURA_URL: ${self:custom.secrets.hasuraUrl}
     JWT_SECRET: ${self:custom.secrets.jwtSecret}
 
 plugins:
@@ -64,4 +66,5 @@ resources:
   Resources:
     PasswordTable: ${file(./serverlessConfig.js):config.passwordTableResource}
     CacheTable: ${file(./serverlessConfig.js):config.cacheTableResource}
+    UserTable: ${file(./serverlessConfig.js):config.userTableResource}
     

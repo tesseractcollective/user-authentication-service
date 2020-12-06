@@ -1,0 +1,310 @@
+openapi: 3.0.0
+info:
+  title: User Authentication Service
+  description: User Authentication Service
+  version: 1.0.0
+  license:
+    name: MIT
+    url: 'https://mit-license.org/'
+servers:
+  - url: 'http://localhost:3000/dev'
+  - url: 'https://user-authentication.example.com'
+tags:
+  - name: auth
+    description: Authentication endpoints
+  - name: events
+    description: Hasura event handlers
+paths:
+  /auth/register:
+    post:
+      tags:
+        - auth
+      summary: Register user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailPassword'            
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: 
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid username/password supplied
+        '409':
+          description: user already exists
+  /auth/user-info:
+    get:
+      tags:
+        - auth
+      summary: Get user with auth token 
+      security:
+        - user_auth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Invalid username/password supplied
+        '409':
+          description: user already exists
+  /auth/login:
+    post:
+      tags:
+        - auth
+      summary: Login user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailPassword'            
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: 
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid username/password supplied
+  /auth/token/refresh: 
+    post:
+      tags:
+        - auth
+      summary: NOT IMPLEMENTED YET
+      description: ''
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string    
+        '400':
+          description: Invalid refresh token supplied
+  /auth/email-verify/request:
+    post:
+      tags:
+        - auth
+      summary: Request a verification email
+      description: ''
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Email'  
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: invalid email
+        '404':
+          description: can't find user
+  /auth/email-verify/verify:
+    get:
+      tags:
+        - auth
+      summary: Verify email with ticket
+      description: ''
+      parameters:
+        - in: query
+          name: email
+          description: email
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: ticket
+          description: ticket
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid email or ticket supplied
+  /auth/change-password/request:
+    post:
+      tags:
+        - auth
+      summary: Request a password change email sent
+      description: ''
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Email' 
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid email or ticket supplied
+  /auth/change-password:
+    get:
+      tags:
+        - auth
+      summary: Change password form
+      description: ''
+      parameters:
+        - in: query
+          name: email
+          description: email
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: ticket
+          description: ticket
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid email or ticket supplied
+  /auth/change-password/verify:
+    post:
+      tags:
+        - auth
+      summary: Change password with ticket
+      description: ''
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailPasswordTicket'
+      responses:
+        '204':
+          description: OK
+        '400':
+          description: Invalid email or ticket supplied
+  /auth/mobile-verify/request:
+    post:
+      tags:
+        - auth
+      summary: Request a mobile verification text
+      description: ''
+      security:
+        - user_auth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Mobile'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid mobile number supplied
+  /auth/mobile-verify/verify:
+    post:
+      tags:
+        - auth
+      summary: Verify a mobile number
+      description: ''
+      security:
+        - user_auth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Ticket'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid mobile number supplied
+components:
+  schemas: 
+    EmailPassword:
+      type: object
+      required: 
+        - email
+        - password
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+    Email:
+      type: object
+      required: 
+        - email
+      properties:
+        email:
+          type: string
+    EmailPasswordTicket:
+      type: object
+      required: 
+        - email
+        - password
+        - ticket
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        ticket:
+          type: string
+    Mobile:
+      type: object
+      required: 
+        - mobile
+      properties:
+        mobile:
+          type: string
+    Ticket:
+      type: object
+      required:
+        - ticket
+      properties:
+        ticket:
+          type: string
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - role
+        - emailVerified
+        - mobileVerified
+      properties:
+        id: 
+          type: string
+        email: 
+          type: string
+        role: 
+          type: string
+        mobile: 
+          type: string
+        emailVerified: 
+          type: boolean
+        mobileVerified: 
+          type: boolean
+  securitySchemes:
+    ApiKey:
+      name: x-api-key
+      type: apiKey
+      in: header
+    user_auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

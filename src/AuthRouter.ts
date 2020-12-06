@@ -1,41 +1,32 @@
 import { Router, NextFunction, Request, Response } from 'express';
-import { HttpError } from '@tesseractcollective/serverless-toolbox';
-import AWS, { SES } from 'aws-sdk';
+import { middleware as openApiValidator } from 'express-openapi-validator';
+import { HttpError, JwtAuth, SesEmail, SnsSms, User } from "@tesseractcollective/serverless-toolbox";
 
-import JwtHasuraAuth, { VerifyTicket } from './JwtAuth';
-import { passwordResetTemplate, emailVerificationTemplate, emailAlreadyVerifiedTemplate } from './email';
-import Sms from './sms';
-
-// HTML Standard: https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
-const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+import { passwordResetTemplate, emailVerificationTemplate, emailAlreadyVerifiedTemplate, EmailData } from './emailTemplates';
 
 export default class AuthRouter {
-  readonly auth: JwtHasuraAuth;
+  readonly auth: JwtAuth;
   readonly router = Router();
   readonly allowedOrigins: string;
+  readonly senderName: string;
+  readonly email: SesEmail;
+  readonly sms: SnsSms;
+  readonly ticketTimeToLiveSeconds: number;
 
-
-  constructor(auth: JwtHasuraAuth, allowedOrigins: string = '*') {
+  constructor(auth: JwtAuth, senderEmail: string, senderName: string, ticketTimeToLiveSeconds = 360, allowedOrigins: string = '*') {
     this.auth = auth;
+    this.senderName = senderName;
+    this.ticketTimeToLiveSeconds = ticketTimeToLiveSeconds;
     this.allowedOrigins = allowedOrigins;
+    this.email = new SesEmail(senderEmail, senderName);
+    this.sms = new SnsSms(senderName);
     this.setupRoutes();
   }
 
-  validate<T>(object: { [key: string]: any }, key: string, type: string, test?: (value: any) => boolean): T {
-    const value = object[key];
-    if (!value) {
-      throw new HttpError(400, `${key} required`);
-    }
-    if (typeof value !== type) {
-      throw new HttpError(400, `${key} should be type ${type}, not ${typeof value}`);
-    }
-    if (test && !test(value)) {
-      throw new HttpError(400, `invalid ${key}`);
-    }
-    return value;
-  } 
-
   setupRoutes() {
+    this.router.use(
+      openApiValidator({ apiSpec: `${__dirname}/../../docs/schema.yaml` })
+    );
     this.router.use((request: Request, response: Response, next: NextFunction) => {
       response.header('Access-Control-Allow-Origin', this.allowedOrigins);
       next();
@@ -43,23 +34,13 @@ export default class AuthRouter {
     
     this.router.post('/register', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
-        const password = this.validate<string>(request.body, 'password', 'string');
-        const user = await this.auth.createUser(email, password);
-        if (user) {
-          const ticket = await this.auth.addEmailVerifyTicket(email);
-          // build link for email
-          const env = process.env.STAGE;
-          const stage = env !== undefined && ['dev', 'stg'].includes(env) ? `/${env}` : '';
-          const tokenLink = `${request.protocol}://${request.headers.host}${stage}/auth/email-verify/verify?ticket=${ticket.ticket}&email=${email}`;
-          let params = emailVerificationTemplate(email, tokenLink);
-          await new AWS.SES().sendEmail(params).promise()
-            .then(data => console.log(`Email verification email for ${email} sent successfully. MessageId: ${data.MessageId}`))
-            .catch(err => console.error('Unable to send verification email ' + err, err.stack));
-        } else {
-          console.log(`User email ${email} does not exist, no email verification email sent.`);
-        }
-        response.status(201).json({'id': user.userId, 'email': user.id});
+        const { email, password } = request.body;
+        const { user, token } = await this.auth.createUser(email, password, 'user');
+        const ticket = await this.auth.addEmailVerifyTicket(user.id, this.ticketTimeToLiveSeconds);
+        const emailVerifyLink = this.createVerifyLink(request, ticket, email, 'email');
+        const emailData = emailVerificationTemplate(emailVerifyLink, this.senderName);
+        await this.email.sendEmail(email, emailData.subject, emailData.htmlMessage);
+        response.status(201).json({ user, token });
       } catch (error) {
         next(error);
       }
@@ -67,17 +48,19 @@ export default class AuthRouter {
 
     this.router.post('/login', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
-        const password = this.validate<string>(request.body, 'password', 'string');
-
-        // TODO: get role and permissions from user to get the namespace and service roles
+        const { email, password } = request.body;
         const user = await this.auth.getUserWithEmailPassword(email, password);
-        const nameSpace = '';
-        const allowedRoles = [''];
-        const role = '';
-        const token = this.auth.createHasuraToken(nameSpace, allowedRoles, role, user.id);
+        const token = this.auth.createJwt(user);
+        response.json({ user, token });
+      } catch (error) {
+        next(error);
+      }
+    });
 
-        response.json({ token, user });
+    this.router.get('/user-info', async (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const user = await this.getAuthUser(request);
+        response.json({ user });
       } catch (error) {
         next(error);
       }
@@ -85,29 +68,17 @@ export default class AuthRouter {
 
     this.router.post('/email-verify/request', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
-        let userPassword = await this.auth.getUserPassword(email);
-        if (userPassword) {
-          let params: SES.Types.SendEmailRequest;
-          if (userPassword.emailVerify?.verified !== true) {
-            const ticket = await this.auth.addEmailVerifyTicket(email);
-            // build link for email
-            const env = process.env.STAGE;
-            const stage = env !== undefined && ['dev', 'stg'].includes(env) ? `/${env}` : '';
-            const tokenLink = `${request.protocol}://${request.headers.host}${stage}/auth/email-verify/verify?ticket=${ticket.ticket}&email=${email}`;
-            params = emailVerificationTemplate(email, tokenLink);
-          } else {
-            params = emailAlreadyVerifiedTemplate(email)
-          }
-          await new AWS.SES().sendEmail(params).promise()
-            .then(data => console.log(`Email verification email for ${email} sent successfully. MessageId: ${data.MessageId}`))
-            .catch(err => {
-              console.error(err, err.stack);
-              throw new HttpError(500, 'Unable to send email verification email, please try again.');
-            })
+        const { email } = request.body;
+        const user = await this.auth.getUserWithEmail(email);
+        let emailData: EmailData;
+        if (user.emailVerified !== true) {
+          const ticket = await this.auth.addEmailVerifyTicket(user.id, this.ticketTimeToLiveSeconds);
+          const emailVerifyLink = this.createVerifyLink(request, ticket, email, 'email');
+          emailData = emailVerificationTemplate(emailVerifyLink, this.senderName);
         } else {
-          console.log(`User email ${email} does not exist, no email verification email sent.`);
+          emailData = emailAlreadyVerifiedTemplate(this.senderName);
         }
+        await this.email.sendEmail(email, emailData.subject, emailData.htmlMessage);
         response.send();
       } catch (error) {
         next(error)
@@ -116,14 +87,9 @@ export default class AuthRouter {
 
     this.router.get('/email-verify/verify', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
-        const ticket = this.validate<string>(request.query, 'ticket', 'string');
-        await this.auth.verifyEmail(email, ticket)
-        .then(data => {
-          console.log(`Email: ${email} verified successfully`)
-          response.sendFile(__dirname + '/views/emailVerify.html')
-        })
-        .catch(err => {throw new HttpError(400, err.message)});
+        const { email, ticket } = request.query;
+        await this.auth.verifyEmail(email as string, ticket as string);
+        response.sendFile(__dirname + '/views/emailVerify.html')
       } catch (error) {
         next(error)
       }
@@ -134,24 +100,11 @@ export default class AuthRouter {
 
     this.router.post('/change-password/request', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
-        let userExists = await this.auth.userExists(email)
-        if (userExists) {
-          let ticket: VerifyTicket = await this.auth.addPasswordResetTicket(email);
-          // build link for email
-          const env = process.env.STAGE;
-          const stage = env !== undefined && ['dev', 'stg'].includes(env) ? `/${env}` : '';
-          const tokenLink = `${request.protocol}://${request.headers.host}${stage}/auth/change-password?ticket=${ticket.ticket}&email=${email}`;
-          const params = passwordResetTemplate(email, tokenLink);
-          await new AWS.SES().sendEmail(params).promise()
-            .then(data => console.log(`Password reset email for ${email} sent successfully. MessageId: ${data.MessageId}`))
-            .catch(err => {
-              console.error(err, err.stack);
-              throw new HttpError(500, 'Unable to send password reset email, please try again.');
-            })
-        } else {
-          console.log(`User email ${email} does not exist, no password reset email sent.`);
-        }
+        const { email } = request.body;
+        const ticket = await this.auth.addPasswordResetTicket(email, this.ticketTimeToLiveSeconds);
+        const verifyLink = this.createVerifyLink(request, ticket, email, 'password');
+        const emailData = passwordResetTemplate(verifyLink, this.senderName);
+        await this.email.sendEmail(email, emailData.subject, emailData.htmlMessage);
         response.send();
       } catch (error) {
         next(error)
@@ -160,10 +113,7 @@ export default class AuthRouter {
 
     this.router.get('/change-password', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        // used in html JavaScript
-        this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex));
-        this.validate<string>(request.query, 'ticket', 'string');
-        response.sendFile(__dirname + '/views/passwordReset.html')
+        response.sendFile(__dirname + '/views/passwordReset.html');
       } catch (error) {
         next(error)
       }
@@ -171,9 +121,7 @@ export default class AuthRouter {
 
     this.router.post('/change-password/verify', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
-        const ticket = this.validate<string>(request.body, 'ticket', 'string');
-        const password = this.validate<string>(request.body, 'password', 'string');
+        const { email, ticket, password } = request.body;
         await this.auth.updatePassword(email, password, ticket);
         response.status(204).send();
       } catch (error) {
@@ -182,17 +130,11 @@ export default class AuthRouter {
     });
     this.router.post('/mobile-verify/request', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.body, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
-        const mobile = this.validate<string>(request.body, 'mobile', 'string');
-        const userExists = await this.auth.userExists(email)
-        if (userExists) {
-          const ticket: VerifyTicket = await this.auth.addMobile(email, mobile);
-          const sender = 'Tesseract';
-          const message = `${sender} mobile verification code: ${ticket.ticket}`;
-          await new Sms(sender).sendSms(message, mobile);
-        } else {
-          console.log(`User email ${email} does not exist, no password reset email sent.`);
-        }
+        const { mobile } = request.body;
+        const user = await this.getAuthUser(request);
+        const ticket = await this.auth.addMobile(user.id, mobile, this.ticketTimeToLiveSeconds);
+        const message = `${this.senderName} mobile verification code: ${ticket}`;
+        await this.sms.sendSms(mobile, message);
         response.send();
       } catch (error) {
         next(error)
@@ -200,19 +142,47 @@ export default class AuthRouter {
     });
     this.router.post('/mobile-verify/verify', async (request: Request, response: Response, next: NextFunction) => {
       try {
-        const email = this.validate<string>(request.query, 'email', 'string', emailRegex.test.bind(emailRegex)).toLowerCase();
-        const ticket = this.validate<string>(request.query, 'ticket', 'string');
-        const mobile = this.validate<string>(request.query, 'mobile', 'string');
-        return this.auth.verifyEmail(email, ticket)
-        .then(data => {
-          console.log(`Mobile: ${mobile} verified successfully`)
-          response.send();
-        })
-        .catch(err => {throw new HttpError(400, err.message)});
+        const { ticket } = request.body;
+        const user = await this.getAuthUser(request);
+        await this.auth.verifyMobile(user.id, ticket);
+        response.send();
       } catch (error) {
         next(error)
       }
     });
-    
+    this.router.use((error: any, request: Request, response: Response, next: NextFunction) => {
+      if (error.status) {
+        error.statusCode = error.status;
+      }
+      next(error);
+    });
+  }
+
+  private async getAuthUser(request: Request): Promise<User> {
+    try {
+      const authorization = request.headers.authorization;
+      if (authorization) {
+        const token = authorization.replace("Bearer ", "");
+        const user = await this.auth.getUserWithJwt(token);
+        if (user) {
+          return user;
+        }
+      }
+    } catch(error) {} 
+    return Promise.reject(new HttpError(401, 'unauthorized'));
+  }
+
+  private createVerifyLink(request: Request, ticket: string, email: string, type: 'email' | 'password') {
+    const subPath = (type: string): string => {
+      switch(type) {
+        case 'email': return 'email-verify/verify';
+        case 'password': 
+        default:
+          return 'change-password';
+      }
+    }
+    const stage = process.env.STAGE;
+    const stagePath = stage !== undefined && ['dev', 'stg'].includes(stage) ? `/${stage}` : '';
+    return `${request.protocol}://${request.headers.host}${stagePath}/auth/${subPath(type)}?ticket=${ticket}&email=${email}`;
   }
 }
