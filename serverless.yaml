@@ -1,0 +1,72 @@
+service: tesseract-user-authentication
+
+custom:
+  secrets: ${ssm:/aws/reference/secretsmanager/${self:service}-${self:provider.stage}~true}
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: ${opt:stage, 'dev'}
+  region: us-east-1
+  memorySize: 512 # default is 1024
+  timeout: 30 # max for API Gateway
+  apiKeys:
+    - user-service-key-${self:service}-${self:provider.stage}
+  iamRoleStatements:
+    - ${file(./serverlessConfig.js):config.passwordTableIamRoleStatements} 
+    - ${file(./serverlessConfig.js):config.cacheTableIamRoleStatements}
+    - ${file(./serverlessConfig.js):config.userTableIamRoleStatements}
+    - ${file(./serverlessConfig.js):config.sesIamRoleStatements}
+    - ${file(./serverlessConfig.js):config.smsIamRoleStatements}
+  environment:
+    PASSWORD_TABLE: ${file(./serverlessConfig.js):config.passwordTable}
+    CACHE_TABLE: ${file(./serverlessConfig.js):config.cacheTable}
+    USER_TABLE: ${file(./serverlessConfig.js):config.userTable}
+    REGION: ${self:provider.region}
+    DEBUG: true
+    STAGE: ${self:provider.stage}
+    # HASURA_ADMIN_SECRET: ${self:custom.secrets.hasuraAdminSecret}
+    # HASURA_URL: ${self:custom.secrets.hasuraUrl}
+    JWT_SECRET: ${self:custom.secrets.jwtSecret}
+
+plugins:
+  # temp fix to hot reload issue (see https://github.com/dherault/serverless-offline/issues/864)
+  # is --useChildProcesses flag (see package.json) 
+  - serverless-plugin-typescript
+  - serverless-offline
+
+functions:
+  authHandler:
+    handler: src/index.authHandler
+    events:
+      - http:
+          path: /auth/
+          method: ANY
+          cors: true
+      - http:
+          path: "/auth/{proxy+}"
+          method: ANY
+          cors: true
+  eventHandler:
+    handler: src/index.eventHandler
+    events:
+      - http:
+          path: /event/
+          method: ANY
+          private: true
+      - http:
+          path: "/event/{proxy+}"
+          method: ANY
+          private: true
+
+package:
+  include:
+  - src/views/*
+  - docs/schema.yaml
+
+resources:
+  Resources:
+    PasswordTable: ${file(./serverlessConfig.js):config.passwordTableResource}
+    CacheTable: ${file(./serverlessConfig.js):config.cacheTableResource}
+    UserTable: ${file(./serverlessConfig.js):config.userTableResource}
+    

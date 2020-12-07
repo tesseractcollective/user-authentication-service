@@ -1,136 +1,87 @@
-# User Authentication Service
+# Tesseract Collective User Authentication Service
 
-## Requirements of other services to work with authentication service:
+Features:
+- email/password account creation
+- email/password login
+- email verification
+- mobile phone verification
+- password reset via email
+- JWTs and authentication
 
-- Role based permissions defined
-  - Any number of roles with any names are allowed, but most services will just have one role called `grant`
-  - Roles will use the custom fields `X-Hasura-Owner-Id` and `X-Hasura-Grant-Id` to define permissions. Example: a user will have a JWT with `X-Hasura-Owner-Id`: <USER_ID>`, `X-Hasura-Role: grant`, and `X-Hasura-Grant-Id: <ORG_ID>`. In the Authentication service, each user or org may only have one role per service. So at any given time, a user will only be able to access things they own or things the org in the token owns given the single defined role. 
-- JWT authentication setup with a custom claim namespace per service and the custom fields `X-Hasura-Owner-Id` and `X-Hasura-Grant-Id`.
-- Each table that has permissions has an `ownerId`
+TODO:
+-[ ] Refresh tokens (currently JWTs don't expire)
 
-```gql
-type ObjectWithPermissions {
-  id: uuid!
-  ownerId: uuid!
-  ...
-}
+## API Docs
+
+- OpenAPI 3.0 Schema: docs/schema.yaml
+- Swagger Docs: https://tesseractcollective.github.io/user-authentication-service/index.html
+
+## Instructions to deploy:
+
+### 1. Install dependencies:
+
+```bash
+# yarn
+yarn install
 ```
 
-- Each service has a grant table to map from one owner id to another. This allows users and orgs to grant access to each other. 
-
-```gql
-type Grants {
-  ownerId: uuid!
-  granteeId: uuid!
-  actions: String! # comma separated values of one or more of the following: insert, select, update, and delete
-  tables: String!  # comma separated table names
-  createdAt: timestamptz
-  updatedAt: timestamptz
-  u
+```bash
+# npm
+npm install
 ```
 
-- Row permissions would have the following checks (Note: the action `%insert%` will be changed to match the permission (insert, select, update, or delete) and the tableName `%documentData%` will be changed to match the table the permission is on):
+### 2. Setup AWS CLI and admin access keys:
+- Install CLI: https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html
+- Setup CLI: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
+- Additional serverless.com reference: https://www.serverless.com/framework/docs/providers/aws/guide/credentials/
 
-```json
-{
-  "_or": [
-    {
-      "_and": [
-        {
-          "grants": {
-            "granteeId": {
-              "_eq": "X-Hasura-Owner-Id"
-            }
-          }
-        },
-        {
-          "grants": {
-            "actions": {
-              "_like": "%insert%"
-            }
-          }
-        },
-        {
-          "grants": {
-            "tables": {
-              "_like": "%documentData%"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "_and": [
-        {
-          "grants": {
-            "granteeId": {
-              "_eq": "X-Hasura-Grant-Id"
-            }
-          }
-        },
-        {
-          "grants": {
-            "actions": {
-              "_like": "%insert%"
-            }
-          }
-        },
-        {
-          "grants": {
-            "tables": {
-              "_like": "%documentData%"
-            }
-          }
-        }
-      ]
-    }
-  ]
-}
+### 3. Setup secrets:
+
+The script stores the secrets in the AWS Secrets Manager (SSM). It will prompt for either `dev` or `prod` secrets. It will also auto-generate secrets for you using `crypto.randomBytes` encoded as base64. Just hit enter to use the auto-generated secret, or provide your own.
+
+Secrets include:
+- JWT HM256 signing key
+
+```bash
+# yarn
+yarn setup:secrets
 ```
 
-## Requirements for Authentication Service
-
-### Policies
-
-A policy defines actions for a table or group of tables. If different actions are needed for different tables, multiple policy documents are created. All services have a `grant` service role with the most often used column level permissions. Other roles with other column level permissions may be defined. 
-
-```gql
-type Policy {
-  id: uuid!
-  name: String!
-  service: String!
-  serviceRole: String! # default: "grant"
-  roleId: uuid!        # the Authentication Service role this policy belongs to
-  actions: String!     # comma separated values of one or more of the following: insert, select, update, and delete
-  tables: String!      # comma separated table names
-  createdAt: timestamptz
-  updatedAt: timestamptz
-}
+```bash
+# npm
+npm run setup:secrets
 ```
 
-### Roles 
+### 4. Setup AWS SES (email):
+- Verify domain(s) you will be emailing from: https://docs.aws.amazon.com/ses/latest/DeveloperGuide/mail-from.html
+- Move out of sandbox: https://docs.aws.amazon.com/ses/latest/DeveloperGuide/quick-start.html
 
-Roles group policies together and can be assigned to users or organizations. When a Role is assigned to a user or organization, the Authentication Service must make one entry for each policy in the `grants` table of the service defined by the policy. 
+### 5. AWS configuration and CloudFormation
 
-```gql
-type Role {
-  id: uuid!
-  name: String!
-  policies: [Policy!]!
-  createdAt: timestamptz
-  updatedAt: timestamptz
-}
+AWS configuration is managed by the Serverless Framework (serverless.com). The configuration for this project is in the file `serverless.yaml`. The Serverless Framework uses this file to create CloudFormation templates including setting up all the necessary IAM roles and permissions. (You can see the generated CloudFormation templates after deployment in the `.serverless/` directory). To aid the setup, `serverless.yaml` also references the configuration generated by `serverlessConfig.js`. 
+
+### 6. Deploy:
+
+```bash
+# yarn
+yarn deploy # or `yarn deploy:prod`
 ```
 
-### UserIdentity
+```bash
+# npm
+npm run deploy # or `npm run deploy:prod`
+```
 
-UserIdentities associate a user to an authentication provider.
+### 7. Run locally:
+- NOTE: running locally requires a deploy first because we haven't yet included mocks for DynamoDB, SES (email), or SNS (SMS messages).
+- You can test all the endpoints by importing the OpenAPI 3.0 schema found in docs/schema.yaml into a HTTP client like postman. 
 
-```gql
-type UserIdentity {
-  id: uuid!
-  userId: uuid!
-  identityTypeId: IdentityType!
-  data: String!
-}
+```bash
+# yarn
+yarn start
+```
+
+```bash
+# npm
+npm start
 ```
