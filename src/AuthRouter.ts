@@ -36,7 +36,7 @@ export default class AuthRouter {
       try {
         const { email, password } = request.body;
         const { user, token } = await this.auth.createUser(email, password, 'user');
-        const ticket = await this.auth.addEmailVerifyTicket(user.id, this.ticketTimeToLiveSeconds);
+        const ticket = await this.auth.addEmailVerifyTicket(email, this.ticketTimeToLiveSeconds);
         const emailVerifyLink = this.createVerifyLink(request, ticket, email, 'email');
         const emailData = emailVerificationTemplate(emailVerifyLink, this.senderName);
         await this.email.sendEmail(email, emailData.subject, emailData.htmlMessage);
@@ -183,6 +183,6 @@ export default class AuthRouter {
     }
     const stage = process.env.STAGE;
     const stagePath = stage !== undefined && ['dev', 'stg'].includes(stage) ? `/${stage}` : '';
-    return `${request.protocol}://${request.headers.host}${stagePath}/auth/${subPath(type)}?ticket=${ticket}&email=${email}`;
+    return `${request.protocol}://${request.headers.host}${stagePath}/auth/${subPath(type)}?ticket=${encodeURIComponent(ticket)}&email=${encodeURIComponent(email)}`;
   }
 }
