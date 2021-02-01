@@ -1127,10 +1127,10 @@
   resolved "https://registry.yarnpkg.com/@tesseractcollective/hasura-toolbox/-/hasura-toolbox-0.1.1.tgz#1d6ace74b5ec42e4d89e56e387c7368afcee3b00"
   integrity sha512-vtRE/KlTnIMCEXY4AHDI4D22omWHWVdRUiVJhF1tx+XAT6objmWBzkBxDV5GYute6mJdFMWsxiLf/nGjKhIPSw==
 
-"@tesseractcollective/serverless-toolbox@^0.4.1":
-  version "0.4.1"
-  resolved "https://registry.yarnpkg.com/@tesseractcollective/serverless-toolbox/-/serverless-toolbox-0.4.1.tgz#ede51c4646e795fd2803f8ee7913ac8d41c5e9a0"
-  integrity sha512-x8J+Byxfpcr7DaCqbYVp6dvleyWqQKxAd6am9BwVfVgPWgA2IkhLRuSnuGx1H55c+HARwb5fyzRrVLIHBb1gZw==
+"@tesseractcollective/serverless-toolbox@^0.5.1":
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/@tesseractcollective/serverless-toolbox/-/serverless-toolbox-0.5.1.tgz#0864f7d7f67de497f3969480529ac429a95e459f"
+  integrity sha512-eJ++cBTpR3ic6B8Q91xzNGuXxE8qlgqigySSxBPF1EGGiWXJke864Sw9jKKYzjTsvJbIfKkUhbClQj1BZ95IBg==
   dependencies:
     aws-serverless-express "^3.3.8"
     bcryptjs "^2.4.3"
@@ -7839,7 +7839,7 @@ uuid@^3.3.2, uuid@^3.4.0:
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-3.4.0.tgz#b23e4358afa8a202fe7a100af1f5f883f02007ee"
   integrity sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==
 
-uuid@^8.3.0, uuid@^8.3.1:
+uuid@^8.3.0, uuid@^8.3.1, uuid@^8.3.2:
   version "8.3.2"
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-8.3.2.tgz#80d5b5ced271bb9af6c445f21a1a04c606cefbe2"
   integrity sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==

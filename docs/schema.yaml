@@ -14,6 +14,8 @@ tags:
     description: Authentication endpoints
   - name: events
     description: Hasura event handlers
+  - name: admin
+    description: Admin endpoints
 paths:
   /auth/register:
     post:

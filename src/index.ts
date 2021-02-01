@@ -17,6 +17,7 @@ import {
 
 import EventRouter from './EventRouter';
 import AuthRouter from './AuthRouter';
+import AdminRouter from './AdminRouter';
 
 // HasuraUserApi is only used if env vars are set
 import HasuraUserApi from './HasuraUserApi';
@@ -52,6 +53,9 @@ const apiGatewayExpressAuth = new ApiGatewayExpress({ '(/dev)?/auth/': authRoute
 const eventRouter = new EventRouter(auth);
 const apiGatewayExpressEvent = new ApiGatewayExpress({ '(/dev)?/event/': eventRouter.router });
 
+const adminRouter = new AdminRouter(auth);
+const apiGatewayExpressAdmin = new ApiGatewayExpress({ '(/dev)?/admin/': adminRouter.router });
+
 export function authHandler(event: APIGatewayProxyEvent, context: Context) {
   log.logApiGatewayEvent(event, { onlyWhenDebug: true });
   apiGatewayExpressAuth.handler(event, context);
@@ -60,4 +64,9 @@ export function authHandler(event: APIGatewayProxyEvent, context: Context) {
 export function eventHandler(event: APIGatewayProxyEvent, context: Context) {
   log.logApiGatewayEvent(event, { onlyWhenDebug: true });
   apiGatewayExpressEvent.handler(event, context);
+}
+
+export function adminHandler(event: APIGatewayProxyEvent, context: Context) {
+  log.logApiGatewayEvent(event, { onlyWhenDebug: true });
+  apiGatewayExpressAdmin.handler(event, context);
 }

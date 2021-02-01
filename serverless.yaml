@@ -1,4 +1,4 @@
-service: tesseract-user-authentication
+service: user-authentication
 
 custom:
   secrets: ${ssm:/aws/reference/secretsmanager/${self:service}-${self:provider.stage}~true}
@@ -12,6 +12,7 @@ provider:
   timeout: 30 # max for API Gateway
   apiKeys:
     - user-service-key-${self:service}-${self:provider.stage}
+    - auth0-key-${self:service}-${self:provider.stage}
   iamRoleStatements:
     - ${file(./serverlessConfig.js):config.passwordTableIamRoleStatements} 
     - ${file(./serverlessConfig.js):config.cacheTableIamRoleStatements}
@@ -56,6 +57,17 @@ functions:
           private: true
       - http:
           path: "/event/{proxy+}"
+          method: ANY
+          private: true
+  adminHandler:
+    handler: src/index.adminHandler
+    events:
+      - http:
+          path: /admin/
+          method: ANY
+          private: true
+      - http:
+          path: "/admin/{proxy+}"
           method: ANY
           private: true
 
