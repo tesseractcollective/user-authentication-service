@@ -43,7 +43,7 @@ async function promptForValueAndTest(prompt, test) {
 (async () => {
   let service;
   try {
-    const serverlessYaml = yaml.safeLoad(fs.readFileSync('./serverless.yml', 'utf8'));
+    const serverlessYaml = yaml.safeLoad(fs.readFileSync('./serverless.yaml', 'utf8'));
     service = serverlessYaml.service;
   } catch (error) {
     console.log(error);
