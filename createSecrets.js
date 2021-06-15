@@ -49,7 +49,7 @@ async function promptForValueAndTest(prompt, test) {
     console.log(error);
   }
   if (!service) {
-    console.log('no service defined in serverless.yml');
+    console.log('no service defined in serverless.yaml');
     return;
   }
 
