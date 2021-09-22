@@ -97,13 +97,26 @@ async function promptForValueAndTest(prompt, test) {
 
   if (ready.toLowerCase() === "y") {
     try {
-      const response = await secretsmanager
-        .putSecretValue({
-          SecretId: secretId,
-          SecretString: secret,
-        })
-        .promise();
+      const existingSecret = await secretsmanager
+            .describeSecret({ SecretId: secretId })
+            .promise().catch(() => {});
 
+      let response;
+      if (existingSecret && existingSecret.ARN) {
+        console.log('updating secrets...')
+        response = await secretsmanager
+          .putSecretValue({
+            SecretId: secretId,
+            SecretString: secret,
+          })
+          .promise();
+      } else {
+        console.log(`creating secrets...`);
+        response = await secretsmanager
+          .createSecret({ Name: secretId, SecretString: secret })
+          .promise();
+
+      }
       console.log(response);
     } catch (error) {
       console.log(error);
