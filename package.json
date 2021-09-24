@@ -10,7 +10,8 @@
     "setup": "node createSecrets.js",
     "deploy": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod",
-    "create:secrets": "node createSecrets"
+    "create:secrets": "node createSecrets",
+    "prepare": "husky install"
   },
   "dependencies": {
     "@tesseractcollective/hasura-toolbox": "^0.1.1",
@@ -25,8 +26,12 @@
     "@types/node": "^13.13.20",
     "@types/node-fetch": "^2.5.7",
     "aws-sdk": "^2.753.0",
+    "eslint": "^7.32.0",
+    "husky": "^7.0.0",
     "jest": "^26.6.3",
     "js-yaml": "^3.14.0",
+    "prettier": "2.4.1",
+    "pretty-quick": "^3.1.1",
     "serverless": "^1.83.0",
     "serverless-offline": "^6.7.0",
     "serverless-plugin-typescript": "^1.1.9",
