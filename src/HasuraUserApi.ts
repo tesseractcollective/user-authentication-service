@@ -10,14 +10,14 @@ export default class UserApi {
 
   // TODO: upsert
   async createUser(user: User): Promise<User> {
-    const mutation = `mutation createUser($id: String!, $email: String!, $role: String!, $mobile: String, $emailVerified: Boolean!, $mobileVerified: Boolean) {
-      insert_user_one(object: {id: $id, email: $email, role: $role, mobile: $mobile, emailVerified: $emailVerified, mobileVerified: $mobileVerified }) {
+    const mutation = `mutation createUser($id: uuid!, $email: String!, $role: userRoles_enum!, $mobile: String, $emailVerified: Boolean!, $mobileVerified: Boolean) {
+      insert_userProfile_one(object: {id: $id, contactInfo: {primaryEmail: $email, mobilePhone: $mobile}, role: $role, emailVerified: $emailVerified, mobileVerified: $mobileVerified }) {
         id
       }
     }`;
     const payload = { query: mutation, variables: user };
 
-    return this.hasuraApi.executeHasuraQuery(payload, 'insert_user_one');
+    return this.hasuraApi.executeHasuraQuery(payload, 'insert_userProfile_one');
   }
 
   async updateUser(user: User): Promise<User> {
@@ -28,23 +28,23 @@ export default class UserApi {
     }`;
     const payload = { query: mutation, variables: user };
 
-    return this.hasuraApi.executeHasuraQuery(payload, 'update_user');
+    return this.hasuraApi.executeHasuraQuery(payload, 'updateuserProfile');
   }
 
   async deleteUserById(id: string): Promise<User> {
     const mutation = `mutation deleteUser($id: uuid!) {
-      delete_user_by_pk(id: $id) {
+      deleteuserProfile_by_pk(id: $id) {
         id
       }
     }`
     const payload = { query: mutation, variables: { id } };
 
-    return this.hasuraApi.executeHasuraQuery(payload, 'delete_user_by_pk');
+    return this.hasuraApi.executeHasuraQuery(payload, 'deleteuserProfile_by_pk');
   }
 
   async getUserById(id: string): Promise<User> {
     const query = `query getUser($id: uuid!) {
-      user_by_pk(id:$id) {
+      userProfile_by_pk(id:$id) {
         id
         email
         role
@@ -55,6 +55,6 @@ export default class UserApi {
     }`;
     const payload = { query, variables: { id } };
 
-    return this.hasuraApi.executeHasuraQuery(payload, 'user_by_pk');
+    return this.hasuraApi.executeHasuraQuery(payload, 'userProfile_by_pk');
   }
 }

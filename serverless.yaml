@@ -1,18 +1,15 @@
 service: user-authentication
 
-custom:
-  secrets: ${ssm:/aws/reference/secretsmanager/${self:service}-${self:provider.stage}~true}
 
 provider:
   name: aws
-  runtime: nodejs12.x
+  runtime: nodejs14.x
   stage: ${opt:stage, 'dev'}
   region: us-east-1
   memorySize: 512 # default is 1024
   timeout: 30 # max for API Gateway
   apiKeys:
     - user-service-key-${self:service}-${self:provider.stage}
-    - auth0-key-${self:service}-${self:provider.stage}
   iamRoleStatements:
     - ${file(./serverlessConfig.js):config.passwordTableIamRoleStatements} 
     - ${file(./serverlessConfig.js):config.cacheTableIamRoleStatements}
@@ -28,7 +25,7 @@ provider:
     STAGE: ${self:provider.stage}
     # HASURA_ADMIN_SECRET: ${self:custom.secrets.hasuraAdminSecret}
     # HASURA_URL: ${self:custom.secrets.hasuraUrl}
-    JWT_SECRET: ${self:custom.secrets.jwtSecret}
+    JWT_SECRET: ${self:custom.secrets.JWT_SECRET}
 
 plugins:
   # temp fix to hot reload issue (see https://github.com/dherault/serverless-offline/issues/864)

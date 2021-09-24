@@ -43,6 +43,11 @@ const jwtConfig: JwtConfiguration = (user: User): JwtData => {
   return {
     sub: user.id,
     iat: Date.now()/1000,
+    "https://hasura.io/jwt/claims": {
+      "x-hasura-allowed-roles": ["claimspecialist", "admin"],
+      "x-hasura-default-role": "claimspecialist",
+      "x-hasura-user-id": user.id,
+    }
   }
 }
 const auth = new JwtAuth(passwordStore, expiringTicketStore, emailMapStore, userStore, jwtSecret, jwtConfig);
