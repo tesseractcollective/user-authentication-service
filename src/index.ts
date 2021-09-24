@@ -38,6 +38,7 @@ const cacheTable = getEnvVar('CACHE_TABLE');
 const passwordStore = new DynamoDbObjectStore<PasswordHash>(passwordTable, region);
 const expiringTicketStore = new DynamoDbExpiringObjectStore<any>(cacheTable, region);
 const emailMapStore = new DynamoDbObjectStore<UserIdBox>(cacheTable, region);
+const pkceStateStore = new DynamoDbExpiringObjectStore<any>(cacheTable, region);
 const userStore = new DynamoDbObjectStore<User>(userTable, region);
 const jwtConfig: JwtConfiguration = (user: User): JwtData => {
   return {
@@ -52,7 +53,7 @@ const jwtConfig: JwtConfiguration = (user: User): JwtData => {
 }
 const auth = new JwtAuth(passwordStore, expiringTicketStore, emailMapStore, userStore, jwtSecret, jwtConfig);
 
-const authRouter = new AuthRouter(auth, 'info@tesseractcollective.com', 'Tesseract');
+const authRouter = new AuthRouter(auth, pkceStateStore, 'info@tesseractcollective.com', 'Tesseract');
 const apiGatewayExpressAuth = new ApiGatewayExpress({ '(/dev)?/auth/': authRouter.router });
 
 const eventRouter = new EventRouter(auth);

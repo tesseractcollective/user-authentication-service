@@ -3,6 +3,8 @@ import { middleware as openApiValidator } from 'express-openapi-validator';
 import { HttpError, JwtAuth, ObjectStore, PasswordHash, User } from "@tesseractcollective/serverless-toolbox";
 import * as uuid from 'uuid';
 
+// Admin router is for managing users if we don't have Hasura
+
 export default class AdminRouter {
   readonly auth: JwtAuth;
   readonly router = Router();
