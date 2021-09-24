@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const readline = require("readline");
 const yaml = require('js-yaml');
-const fs = require('fs');
+const fs   = require('fs');
 const AWS = require("aws-sdk");
 
 const secretsmanager = new AWS.SecretsManager({
@@ -63,7 +63,7 @@ async function promptForValueAndTest(prompt, test) {
   const previousSecret = await secretsmanager
     .getSecretValue({ SecretId: secretId })
     .promise()
-    .catch(() => { }) || {};
+    .catch(() => {}) || {};
   let previousPayload = {};
   if (previousSecret.SecretString) {
     previousPayload = JSON.parse(previousSecret.SecretString);
@@ -76,7 +76,7 @@ async function promptForValueAndTest(prompt, test) {
   const hasuraAdminSecret = await promptForValue(
     "Hasura Admin Secret",
     previousPayload.hasuraAdminSecret ||
-    crypto.randomBytes(42).toString("base64")
+      crypto.randomBytes(42).toString("base64")
   );
   const jwtSecret = await promptForValue(
     "JWT Secret",
@@ -97,18 +97,26 @@ async function promptForValueAndTest(prompt, test) {
 
   if (ready.toLowerCase() === "y") {
     try {
-      let response = await secretsmanager.createSecret({
-        Name: secretId,
-        SecretString: secret
-      }).promise().catch(async (error) => {
-        return secretsmanager
+      const existingSecret = await secretsmanager
+            .describeSecret({ SecretId: secretId })
+            .promise().catch(() => {});
+
+      let response;
+      if (existingSecret && existingSecret.ARN) {
+        console.log('updating secrets...')
+        response = await secretsmanager
           .putSecretValue({
             SecretId: secretId,
             SecretString: secret,
           })
           .promise();
-      });
+      } else {
+        console.log(`creating secrets...`);
+        response = await secretsmanager
+          .createSecret({ Name: secretId, SecretString: secret })
+          .promise();
 
+      }
       console.log(response);
     } catch (error) {
       console.log(error);
