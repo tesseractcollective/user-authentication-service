@@ -15,5 +15,6 @@
         "@typescript-eslint"
     ],
     "rules": {
+      "no-unused-vars": [2, {"args": "after-used", "argsIgnorePattern": "^_"}]
     }
 }

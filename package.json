@@ -16,6 +16,7 @@
   "dependencies": {
     "@tesseractcollective/hasura-toolbox": "^0.1.1",
     "@tesseractcollective/serverless-toolbox": "^0.4.1",
+    "express": "^4.17.1",
     "express-openapi-validator": "^4.8.0",
     "node-fetch": "^2.6.1",
     "source-map-support": "^0.5.19"
