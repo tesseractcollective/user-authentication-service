@@ -14,6 +14,7 @@
     "prepare": "husky install"
   },
   "dependencies": {
+    "@jmondi/oauth2-server": "^2.0.3",
     "@tesseractcollective/hasura-toolbox": "^0.1.1",
     "@tesseractcollective/serverless-toolbox": "^0.4.1",
     "express": "^4.17.1",
