@@ -13,6 +13,8 @@ import DynamoObjectDBStore from "@tesseractcollective/serverless-toolbox/dist/ob
 import Client from "./entities/Client";
 import AuthCode from "./entities/AuthCode";
 import UserAuthServiceOAuth2AuthCodeRepository from "./repositories/AuthCodeRepository";
+import TokenRepository from "./repositories/TokenRepository";
+import Token from "./entities/Token";
 
 export default class OAuth2Router {
   readonly router = Router();
@@ -30,6 +32,11 @@ export default class OAuth2Router {
       "east-2"
     );
 
+    const tokenStore = new DynamoObjectDBStore<Token>(
+      "oauth2_token_repository",
+      "east-2"
+    );
+
     const clientRepository = new UserAuthServiceOAuth2ClientRepository(
       clientStore
     );
@@ -38,13 +45,7 @@ export default class OAuth2Router {
       authCodeStore
     );
 
-    const accessTokenStore = new AccessTokenStore(
-      "oauth2_access_token_repisotory",
-      "east-2"
-    );
-
-    const accessTokenRepository =
-      new UserAUthServiceOAuth2AccessTokenRepository(accessTokenStore);
+    const accessTokenRepository = new TokenRepository(tokenStore);
 
     this.authorizationServer = new AuthorizationServer(
       authCodeRepository,
