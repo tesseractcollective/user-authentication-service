@@ -15,6 +15,8 @@ import AuthCode from "./entities/AuthCode";
 import UserAuthServiceOAuth2AuthCodeRepository from "./repositories/AuthCodeRepository";
 import TokenRepository from "./repositories/TokenRepository";
 import Token from "./entities/Token";
+import ScopeRepository from "./repositories/ScopeRepository";
+import Scope from "./entities/Scope";
 
 export default class OAuth2Router {
   readonly router = Router();
@@ -37,6 +39,11 @@ export default class OAuth2Router {
       "east-2"
     );
 
+    const scopeStore = new DynamoObjectDBStore<Scope>(
+      "oauth2_scope_repository",
+      "east-2"
+    );
+
     const clientRepository = new UserAuthServiceOAuth2ClientRepository(
       clientStore
     );
@@ -46,6 +53,8 @@ export default class OAuth2Router {
     );
 
     const accessTokenRepository = new TokenRepository(tokenStore);
+
+    const scopeRepository = new ScopeRepository(scopeStore);
 
     this.authorizationServer = new AuthorizationServer(
       authCodeRepository,
