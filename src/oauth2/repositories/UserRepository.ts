@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import {
   ExtraAccessTokenFields,
   GrantIdentifier,
@@ -6,9 +7,72 @@ import {
   OAuthUserIdentifier,
   OAuthUserRepository,
 } from "@jmondi/oauth2-server";
-import { ObjectStore } from "@tesseractcollective/serverless-toolbox";
+import { ObjectStore, User } from "@tesseractcollective/serverless-toolbox";
 
-import User from "../entities/User";
+export class UserStore implements ObjectStore<User> {
+  table: string;
+  region: string;
+
+  constructor(table: string, region: string) {
+    this.table = table;
+    this.region = region;
+  }
+
+  static mockedUsers: User[] = [
+    {
+      id: uuidv4(),
+      email: "mock@mail.com",
+      role: "admin",
+      emailVerified: false,
+      mobileVerified: false,
+    },
+    {
+      id: uuidv4(),
+      email: "mock2@mail.com",
+      role: "admin",
+      emailVerified: false,
+      mobileVerified: false,
+    },
+    {
+      id: uuidv4(),
+      email: "mock3@mail.com",
+      role: "user",
+      emailVerified: false,
+      mobileVerified: false,
+    },
+    {
+      id: uuidv4(),
+      email: "mock4@mail.com",
+      role: "user",
+      emailVerified: false,
+      mobileVerified: false,
+    },
+  ];
+
+  async get(id: string): Promise<User | undefined> {
+    return UserStore.mockedUsers.find((user) => user.id === id);
+  }
+
+  async put(id: string, item: User): Promise<User> {
+    const foundUserIndex = UserStore.mockedUsers.findIndex(
+      (user) => user.id === id
+    );
+    if (foundUserIndex) {
+      UserStore.mockedUsers[foundUserIndex] = item;
+    }
+    throw new Error(`User with id=${id} not found.`);
+  }
+
+  async delete(id: string): Promise<void> {
+    const foundUserIndex = UserStore.mockedUsers.findIndex(
+      (user) => user.id === id
+    );
+    if (foundUserIndex) {
+      UserStore.mockedUsers.splice(foundUserIndex, 1);
+    }
+    throw new Error(`User with id=${id} not found`);
+  }
+}
 
 export class UserRepository implements OAuthUserRepository {
   userStore: ObjectStore<User>;

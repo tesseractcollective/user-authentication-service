@@ -22,39 +22,37 @@ import TokenRepository from "./repositories/TokenRepository";
 import Token from "./entities/Token";
 import ScopeRepository from "./repositories/ScopeRepository";
 import Scope from "./entities/Scope";
-import { UserRepository } from "./repositories/UserRepository";
-import User from "./entities/User";
+import { UserRepository, UserStore } from "./repositories/UserRepository";
+import { getEnvVar, JwtAuth } from "@tesseractcollective/serverless-toolbox";
+
+const REGION = getEnvVar("REGION");
+const CLIENT_TABLE = getEnvVar("CLIENT_TABLE");
+const TOKEN_TABLE = getEnvVar("TOKEN_TABLE");
+const AUTH_CODE_TABLE = getEnvVar("AUTH_CODE_TABLE");
+const SCOPE_TABLE = getEnvVar("SCOPE_TABLE");
+const JWT_SECRET = getEnvVar("JWT_SECRET");
 
 export default class OAuth2Router {
   readonly router = Router();
 
   authorizationServer: AuthorizationServer;
+  auth: JwtAuth;
 
-  constructor() {
-    const clientStore = new DynamoObjectDBStore<Client>(
-      "oauth2_client_repository",
-      "east-2"
-    );
+  constructor(jwtAuth: JwtAuth) {
+    this.auth = jwtAuth;
+
+    const clientStore = new DynamoObjectDBStore<Client>(CLIENT_TABLE, REGION);
 
     const authCodeStore = new DynamoObjectDBStore<AuthCode>(
-      "oauth2_auth_code_repository",
-      "east-2"
+      AUTH_CODE_TABLE,
+      REGION
     );
 
-    const tokenStore = new DynamoObjectDBStore<Token>(
-      "oauth2_token_repository",
-      "east-2"
-    );
+    const tokenStore = new DynamoObjectDBStore<Token>(TOKEN_TABLE, REGION);
 
-    const scopeStore = new DynamoObjectDBStore<Scope>(
-      "oauth2_scope_repository",
-      "east-2"
-    );
+    const scopeStore = new DynamoObjectDBStore<Scope>(SCOPE_TABLE, REGION);
 
-    const userStore = new DynamoObjectDBStore<User>(
-      "oauth2_user_repository",
-      "east-2"
-    );
+    const userStore = new UserStore("user-table", REGION);
 
     const clientRepository = new UserAuthServiceOAuth2ClientRepository(
       clientStore
@@ -76,7 +74,7 @@ export default class OAuth2Router {
       accessTokenRepository,
       scopeRepository,
       userRepository,
-      new JwtService("secret-key") // TODO: Replace this since we already have JWT Service.
+      new JwtService(JWT_SECRET)
     );
 
     this.authorizationServer.enableGrantTypes(
@@ -86,7 +84,7 @@ export default class OAuth2Router {
   }
 
   getIsAuthorizationApprovedFromSession() {
-    return true; // TODO: implement function.
+    return true;
   }
 
   setupRoutes() {

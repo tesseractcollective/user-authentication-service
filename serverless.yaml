@@ -48,6 +48,12 @@ provider:
     # HASURA_ADMIN_SECRET: ${self:custom.secrets.hasuraAdminSecret}
     # HASURA_URL: ${self:custom.secrets.hasuraUrl}
     JWT_SECRET: ${self:custom.secrets.jwtSecret}
+    # TABLE for OAuth2
+    CLIENT_TABLE: ${file(./serverlessConfig.js):config.oAuthTables.clientTable}
+    TOKEN_TABLE: ${file(./serverlessConfig.js):config.oAuthTables.tokenTable}
+    AUTH_CODE_TABLE: ${file(./serverlessConfig.js):config.oAuthTables.authCodeTable}
+    SCOPE_TABLE: ${file(./serverlessConfig.js):config.oAuthTables.scopeTable}
+
 
 plugins:
   # temp fix to hot reload issue (see https://github.com/dherault/serverless-offline/issues/864)
