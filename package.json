@@ -20,6 +20,8 @@
     "express": "^4.17.1",
     "express-openapi-validator": "^4.8.0",
     "node-fetch": "^2.6.1",
+    "serverless-dynamodb-client": "^0.0.2",
+    "serverless-dynamodb-local": "^0.2.40",
     "source-map-support": "^0.5.19"
   },
   "devDependencies": {

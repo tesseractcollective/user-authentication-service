@@ -1,0 +1,10 @@
+[
+  {
+    "name": "photos",
+    "description": "fake scope for photos"
+  }, 
+  {
+    "name": "music",
+    "description": "fake scope for music"
+  }
+]

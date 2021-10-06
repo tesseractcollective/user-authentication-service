@@ -7,9 +7,7 @@ import { ObjectStore } from "@tesseractcollective/serverless-toolbox";
 
 import Client from "../entities/Client";
 
-export default class UserAuthServiceOAuth2ClientRepository
-  implements OAuthClientRepository
-{
+export default class ClientRepository implements OAuthClientRepository {
   clientStore: ObjectStore<Client>;
 
   constructor(clientStore: ObjectStore<Client>) {

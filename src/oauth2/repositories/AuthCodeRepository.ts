@@ -10,9 +10,7 @@ import {
 import { ObjectStore } from "@tesseractcollective/serverless-toolbox";
 import AuthCode from "../entities/AuthCode";
 
-export default class UserAuthServiceOAuth2AuthCodeRepository
-  implements OAuthAuthCodeRepository
-{
+export default class AuthCodeRepository implements OAuthAuthCodeRepository {
   authCodeStore: ObjectStore<AuthCode>;
 
   constructor(authCodeStore: ObjectStore<AuthCode>) {

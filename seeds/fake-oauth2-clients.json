@@ -1,0 +1,18 @@
+[
+  {
+    "id": "LFTyInT-2pCZ1JKVYP8-yt8R",
+    "name": "fake-app-01",
+    "secret": "JU0AZmwhTuiRupbPdq02cJl7MikJF0SkQLex249duAs0sAjv",
+    "redirectUris": ["https://www.oauth.com/playground/authorization-code-with-pkce.html"],
+    "allowedGrants": ["authorization_code"],
+    "scopes": ["photos", "music"]
+  },
+  {
+    "id": "18m33atKhGcS-rTbTTOZnT6T",
+    "name": "fake-app-02",
+    "secret": "z4vRgKQcuw7wMtfHwD7QSlLlw3fFiykOCL1b3D6E827KyW7S",
+    "redirectUris": ["https://www.oauth.com/playground/authorization-code-with-pkce.html"],
+    "allowedGrants": ["authorization_code"],
+    "scopes": ["music"]
+  }
+]

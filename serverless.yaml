@@ -2,6 +2,26 @@ service: tesseract-user-authentication
 
 custom:
   secrets: ${ssm:/aws/reference/secretsmanager/${self:service}-${self:provider.stage}~true}
+  dynamodb:
+    stages:
+      - dev
+
+    start:
+      port: 8000
+      inMemory: true
+      heapInitial: 200m
+      heapMax: 1g
+      migrate: true
+      seed: true
+      convertEmptyValues: true
+    
+    seed:
+      dev:
+        sources:
+          - table: tesseract-user-authentication-dev-oauth2-client
+            sources: [./seeds/fake-oauth2-clients.json]
+          - table: tesseract-user-authentication-dev-oauth2-scope
+            sources: [./seeds/fake-oauth2-scopes.json]
 
 provider:
   name: aws
@@ -33,6 +53,7 @@ plugins:
   # temp fix to hot reload issue (see https://github.com/dherault/serverless-offline/issues/864)
   # is --useChildProcesses flag (see package.json) 
   - serverless-plugin-typescript
+  - serverless-dynamodb-local
   - serverless-offline
 
 functions:
@@ -68,5 +89,8 @@ resources:
   Resources:
     PasswordTable: ${file(./serverlessConfig.js):config.passwordTableResource}
     CacheTable: ${file(./serverlessConfig.js):config.cacheTableResource}
-    UserTable: ${file(./serverlessConfig.js):config.userTableResource}
+    ClientTable: ${file(./serverlessConfig.js):config.clientTableResource}
+    TokenTable: ${file(./serverlessConfig.js):config.tokenTableResource}
+    AuthCodeTable: ${file(./serverlessConfig.js):config.authCodeTableResource}
+    ScopeTable: ${file(./serverlessConfig.js):config.scopeTableResource}
     

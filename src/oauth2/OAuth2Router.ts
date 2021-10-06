@@ -13,7 +13,7 @@ import {
   DateInterval,
   JwtService,
 } from "@jmondi/oauth2-server";
-import UserAuthServiceOAuth2ClientRepository from "./repositories/OAuth2ClientRepository";
+import UserAuthServiceOAuth2ClientRepository from "./repositories/ClientRepository";
 import DynamoObjectDBStore from "@tesseractcollective/serverless-toolbox/dist/objectStore/DynamoDbObjectStore";
 import Client from "./entities/Client";
 import AuthCode from "./entities/AuthCode";
@@ -118,15 +118,13 @@ export default class OAuth2Router {
         const request = requestFromExpress(req);
 
         try {
-          // Validate the HTTP request and return an AuthorizationRequest.
           const authRequest =
             await this.authorizationServer.validateAuthorizationRequest(
               request
             );
 
-          // You will probably redirect the user to a login endpoint.
           if (!req.user) {
-            res.redirect("/login");
+            res.sendStatus(403);
             return;
           }
           // After login, the user should be redirected back with user in the session.
