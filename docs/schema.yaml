@@ -308,3 +308,12 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    crowndpoint_oauth:
+      type: oauth2
+      flows: 
+        authorizationCode:
+          authorizationUrl: http://localhost:3000/dev/oauth/authorize
+          tokenUrl: http://localhost:3000/dev/oauth/token
+          scopes:
+            write:fake: modify records.
+            read:fake: read records.

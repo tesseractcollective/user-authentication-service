@@ -37,9 +37,11 @@ export default class OAuth2Router {
 
   authorizationServer: AuthorizationServer;
   auth: JwtAuth;
+  allowedOrigins: string;
 
-  constructor(jwtAuth: JwtAuth) {
+  constructor(jwtAuth: JwtAuth, allowedOrigins = "*") {
     this.auth = jwtAuth;
+    this.allowedOrigins = allowedOrigins;
 
     const clientStore = new DynamoObjectDBStore<Client>(CLIENT_TABLE, REGION);
 
@@ -81,6 +83,8 @@ export default class OAuth2Router {
       ["authorization_code", new DateInterval("15m")],
       "refresh_token"
     );
+
+    this.setupRoutes();
   }
 
   getIsAuthorizationApprovedFromSession() {
@@ -90,6 +94,17 @@ export default class OAuth2Router {
   setupRoutes() {
     this.router.use(json());
     this.router.use(urlencoded({ extended: false }));
+
+    this.router.use(
+      (
+        request: express.Request,
+        response: express.Response,
+        next: express.NextFunction
+      ) => {
+        response.header("Access-Control-Allow-Origin", this.allowedOrigins);
+        next();
+      }
+    );
 
     this.router.post(
       "/token",

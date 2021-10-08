@@ -85,6 +85,17 @@ functions:
           path: "/event/{proxy+}"
           method: ANY
           private: true
+  oauthHandler:
+    handler: src/index.oauthHandler
+    events:
+      - http:
+          path: /oauth/
+          method: ANY
+          cors: true
+      - http:
+          path: "/oauth/{proxy+}"
+          method: ANY
+          cors: true
 
 package:
   include:
